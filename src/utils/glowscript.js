@@ -136,7 +136,15 @@ function __main__() {
     var scene = canvas();
     scene.width = window.innerWidth;
     scene.height = window.innerHeight;
-    ${code}
+    // 학생/AI 코드를 eval로 감싸 syntax error도 캐치 → iframe 자체가 깨지지 않게
+    try {
+        eval(${JSON.stringify(code)});
+    } catch (e) {
+        console.error('[VPython] code error:', e);
+        try {
+            scene.append_to_caption('<br><span style="color:#ff6b6b;font-family:monospace;font-size:0.85em">⚠ 코드 오류: ' + (e && e.message ? e.message : e) + '</span>');
+        } catch (_) {}
+    }
     ${controlScript}
 }
 ;$(function(){ window.__context = { glowscript_container: $("#glowscript").removeAttr("id") }; __main__() })})()
