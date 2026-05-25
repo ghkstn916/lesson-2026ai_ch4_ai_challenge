@@ -7,3 +7,5 @@ dist
 db/*.db
 db/*.db-*
 .DS_Store
+
+.vercel

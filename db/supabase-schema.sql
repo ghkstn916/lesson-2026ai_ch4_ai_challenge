@@ -89,13 +89,19 @@ create policy "public_all" on ai8_project_plans for all using (true) with check 
 create policy "public_all" on ai8_discussion_groups for all using (true) with check (true);
 create policy "public_all" on ai8_gallery_comments for all using (true) with check (true);
 
--- ── Storage 버킷 (수동 작업 안내) ──────────────────────────────────────────────
--- Supabase Dashboard → Storage → New bucket → name: "gallery", Public on
--- 그리고 아래 정책 추가:
---
--- create policy "public_read" on storage.objects
---   for select using (bucket_id = 'gallery');
--- create policy "public_insert" on storage.objects
---   for insert with check (bucket_id = 'gallery');
--- create policy "public_update" on storage.objects
---   for update using (bucket_id = 'gallery');
+-- ── Storage 버킷 (SQL로 직접 생성) ─────────────────────────────────────────────
+-- 버킷 이름: ai8-gallery (다른 수업과 겹치지 않도록 prefix)
+insert into storage.buckets (id, name, public)
+values ('ai8-gallery', 'ai8-gallery', true)
+on conflict (id) do nothing;
+
+drop policy if exists "ai8_gallery_read"   on storage.objects;
+drop policy if exists "ai8_gallery_insert" on storage.objects;
+drop policy if exists "ai8_gallery_update" on storage.objects;
+
+create policy "ai8_gallery_read" on storage.objects
+  for select using (bucket_id = 'ai8-gallery');
+create policy "ai8_gallery_insert" on storage.objects
+  for insert with check (bucket_id = 'ai8-gallery');
+create policy "ai8_gallery_update" on storage.objects
+  for update using (bucket_id = 'ai8-gallery');

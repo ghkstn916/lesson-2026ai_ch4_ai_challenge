@@ -12,7 +12,7 @@ export const ATTEMPTS = 'ai8_attempts'
 export const PROJECT_PLANS = 'ai8_project_plans'
 export const DISCUSSION_GROUPS = 'ai8_discussion_groups'
 export const GALLERY_COMMENTS = 'ai8_gallery_comments'
-export const GALLERY_BUCKET = 'gallery'
+export const GALLERY_BUCKET = 'ai8-gallery'
 
 // ── 학생 ────────────────────────────────────────────────────────────────────
 export async function upsertStudent({ sessionId, studentNumber, name }) {
