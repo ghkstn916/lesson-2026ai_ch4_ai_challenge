@@ -53,6 +53,12 @@ export default function WarmupMode() {
   const [addLoading, setAddLoading] = useState(false)
   const [addError, setAddError] = useState('')
 
+  // 첨부 자료 (2번 미션 — challenge.hasAttachment)
+  const [attachText, setAttachText] = useState('')
+  const [attachUrl, setAttachUrl] = useState('')
+  const [fetchingUrl, setFetchingUrl] = useState(false)
+  const [attachError, setAttachError] = useState('')
+
   // 챌린지 바뀌면 모두 초기화
   useEffect(() => {
     setParts(challenge.defaults)
@@ -69,6 +75,9 @@ export default function WarmupMode() {
     setAddRequest('')
     setAddExps([])
     setAddError('')
+    setAttachText('')
+    setAttachUrl('')
+    setAttachError('')
   }, [challenge.id])
 
   useEffect(() => {
@@ -82,7 +91,48 @@ export default function WarmupMode() {
   const allConfirmed = VARIANT_LABELS.every(
     (v) => confirmed[v.key] && (parts[v.key] || '').trim()
   )
-  const composedPrompt = composeWarmupPrompt(parts, challenge)
+  const basePrompt = composeWarmupPrompt(parts, challenge)
+  const composedPrompt = attachText.trim()
+    ? `${basePrompt}\n\n[참고 자료 — 학생이 첨부]\n${attachText.trim()}`
+    : basePrompt
+
+  // 챌린지별 system: 공통 + 챌린지 추가 지시
+  const systemPrompt = challenge.systemAddon
+    ? `${WARMUP_SYSTEM_PROMPT}\n\n— 이 미션의 추가 지시 —\n${challenge.systemAddon}`
+    : WARMUP_SYSTEM_PROMPT
+
+  // 비공개 챌린지 (자기소개·진로) 또는 ⑥(편지)은 is_public=false 로 저장
+  const isPrivate = !!challenge.isPrivate
+
+  async function fetchUrlContent() {
+    setAttachError('')
+    const u = attachUrl.trim()
+    if (!u) return
+    if (!/^https?:\/\//i.test(u)) {
+      setAttachError('http:// 또는 https:// 로 시작하는 URL을 입력하세요.')
+      return
+    }
+    setFetchingUrl(true)
+    try {
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(u)}`
+      const res = await fetch(proxyUrl)
+      if (!res.ok) throw new Error('상태 ' + res.status)
+      const html = await res.text()
+      const tmp = document.createElement('div')
+      tmp.innerHTML = html
+      tmp.querySelectorAll('script, style, noscript, svg, header, footer, nav').forEach((el) => el.remove())
+      const text = (tmp.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 8000)
+      if (!text) throw new Error('가져온 내용이 비어있어요.')
+      setAttachText(text)
+    } catch (e) {
+      setAttachError(
+        '가져오기 실패 (' +
+          (e.message || '알 수 없음') +
+          ') — 페이지가 외부 접근을 막을 수 있어요. 자료 내용을 직접 복사·붙여넣기 해주세요.'
+      )
+    }
+    setFetchingUrl(false)
+  }
 
   const handleChange = (key, value) => {
     setParts({ ...parts, [key]: value })
@@ -110,7 +160,7 @@ export default function WarmupMode() {
       const { text } = await callClaude({
         model: 'claude-haiku-4-5-20251001',
         maxTokens: 600,
-        system: WARMUP_SYSTEM_PROMPT,
+        system: systemPrompt,
         messages: [{ role: 'user', content: composedPrompt }],
       })
       setOutput(text)
@@ -131,7 +181,8 @@ export default function WarmupMode() {
         challenge_id: challenge.id,
         prompt: composedPrompt,
         output_text: output,
-        self_check: { ...parts, isBaseline: true },
+        self_check: { ...parts, isBaseline: true, hasAttachment: !!attachText.trim() },
+        is_public: !isPrivate,
       })
       setHistory([row, ...history])
     } catch (e) {
@@ -152,13 +203,16 @@ export default function WarmupMode() {
       return
     }
     const newParts = { ...parts, [variantKey]: trimmed }
-    const newPrompt = composeWarmupPrompt(newParts, challenge)
+    const newBase = composeWarmupPrompt(newParts, challenge)
+    const newPrompt = attachText.trim()
+      ? `${newBase}\n\n[참고 자료 — 학생이 첨부]\n${attachText.trim()}`
+      : newBase
     setVariantLoading(true)
     try {
       const { text } = await callClaude({
         model: 'claude-haiku-4-5-20251001',
         maxTokens: 600,
-        system: WARMUP_SYSTEM_PROMPT,
+        system: systemPrompt,
         messages: [{ role: 'user', content: newPrompt }],
       })
       const exp = {
@@ -196,6 +250,7 @@ export default function WarmupMode() {
           isBaseline: false,
           experiment: { changed: exp.changedKey, from: exp.oldValue, to: exp.newValue },
         },
+        is_public: !isPrivate,
       })
       setVariantExps(variantExps.map((e) => (e.id === exp.id ? { ...e, registered: true, rowId: row.id } : e)))
       setHistory([row, ...history])
@@ -245,7 +300,7 @@ export default function WarmupMode() {
       const { text } = await callClaude({
         model: 'claude-haiku-4-5-20251001',
         maxTokens: 700,
-        system: WARMUP_SYSTEM_PROMPT,
+        system: systemPrompt,
         messages: [{ role: 'user', content: newPrompt }],
       })
       const exp = {
@@ -371,6 +426,80 @@ export default function WarmupMode() {
             </div>
           </div>
 
+          {/* 📎 참고 자료 첨부 (hasAttachment 챌린지만) */}
+          {challenge.hasAttachment && (
+            <div className="card" style={{ borderLeft: '4px solid var(--accent)' }}>
+              <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>
+                📎 참고 자료 첨부 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 6 }}>(선택, 강력 권장)</span>
+              </p>
+              <p className="muted small" style={{ marginBottom: 12, fontSize: '0.85rem' }}>
+                본인의 활동·수상·독서·탐구 기록을 텍스트로 붙이거나 관련 URL을 입력하세요.
+                AI가 그 내용을 바탕으로 생활기록부용 글을 정리해줍니다. 자료가 없는 활동은 만들어내지 않습니다.
+              </p>
+
+              <div className="field">
+                <span>📄 자료 내용 (직접 붙여넣기)</span>
+                <textarea
+                  value={attachText}
+                  onChange={(e) => setAttachText(e.target.value)}
+                  rows={6}
+                  placeholder={`예) 동아리: 데이터분석 동아리(2년)
+- 1학년: 학교 매점 매출 분석 발표 (Python, Pandas)
+- 2학년: 학교 도서관 대출 데이터로 추천 시스템 만듦
+수상: 교내 IT경진대회 우수상 (2025)
+독서: '뉴스의 시대'(알랭 드 보통), '데이터로 본 사회'(...)
+탐구활동: 통계청 API로 우리 동네 인구 분포 시각화
+관심 진로: 데이터 사이언티스트 / 사회문제 해결`}
+                  style={{
+                    fontFamily: 'inherit',
+                    lineHeight: 1.6,
+                    background: 'var(--surface)',
+                  }}
+                />
+              </div>
+
+              <div className="row" style={{ marginTop: 10, gap: 6, alignItems: 'flex-end' }}>
+                <label className="field" style={{ flex: 1 }}>
+                  <span>또는 🔗 URL에서 가져오기 (실험적)</span>
+                  <input
+                    type="url"
+                    value={attachUrl}
+                    onChange={(e) => setAttachUrl(e.target.value)}
+                    placeholder="https://..."
+                  />
+                </label>
+                <button
+                  className="btn"
+                  onClick={fetchUrlContent}
+                  disabled={fetchingUrl || !attachUrl.trim()}
+                  style={{ padding: '8px 14px' }}
+                >
+                  {fetchingUrl ? '가져오는 중...' : '📥 가져와서 채우기'}
+                </button>
+              </div>
+
+              {attachError && (
+                <p className="error" style={{ marginTop: 8 }}>{attachError}</p>
+              )}
+
+              {attachText.trim() && (
+                <p
+                  className="small"
+                  style={{
+                    marginTop: 10,
+                    color: 'var(--success)',
+                    padding: '6px 10px',
+                    background: 'rgba(34, 197, 94, 0.1)',
+                    borderRadius: 'var(--radius)',
+                    fontSize: '0.82rem',
+                  }}
+                >
+                  ✅ 자료 {attachText.trim().length.toLocaleString()}자 첨부됨. ②에서 보내면 함께 전송됩니다.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* ② 완성 프롬프트 + 보내기 */}
           <div
             className="card"
@@ -430,12 +559,27 @@ export default function WarmupMode() {
               >
                 {output}
               </div>
+              {isPrivate && (
+                <p
+                  className="small"
+                  style={{
+                    marginTop: 10,
+                    padding: '6px 10px',
+                    background: 'rgba(245, 158, 11, 0.12)',
+                    color: 'var(--warning)',
+                    borderRadius: 'var(--radius)',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  🔒 이 미션의 결과는 공개 갤러리에 올라가지 않고 선생님만 볼 수 있어요.
+                </p>
+              )}
               <button
                 className="btn btn-primary"
                 onClick={handleRegisterBaseline}
                 style={{ width: '100%', marginTop: 12 }}
               >
-                📌 기본 결과 갤러리에 등록
+                {isPrivate ? '📤 기본 결과 선생님께 제출' : '📌 기본 결과 갤러리에 등록'}
               </button>
             </div>
           )}
@@ -593,7 +737,13 @@ export default function WarmupMode() {
                       disabled={exp.registered}
                       style={{ width: '100%', marginTop: 10 }}
                     >
-                      {exp.registered ? '✓ 등록됨' : '📌 이 변형 갤러리에 등록'}
+                      {exp.registered
+                        ? isPrivate
+                          ? '✓ 선생님께 제출 완료'
+                          : '✓ 등록됨'
+                        : isPrivate
+                        ? '📤 이 변형 선생님께 제출'
+                        : '📌 이 변형 갤러리에 등록'}
                     </button>
                   </div>
                 )

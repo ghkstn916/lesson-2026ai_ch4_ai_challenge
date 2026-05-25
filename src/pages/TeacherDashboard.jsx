@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   fetchAllAttemptsForTeacher,
@@ -6,6 +6,7 @@ import {
   setTeacherScore,
 } from '../lib/supabase.js'
 import { MODES } from '../data/modes.js'
+import { challengeMeta, challengeIdsForMode } from '../data/challenges-index.js'
 
 const SESSION_KEY = 'ai8-admin-auth'
 
@@ -162,13 +163,174 @@ function Dashboard({ onLogout }) {
         {loading && <p className="muted">불러오는 중...</p>}
         {!loading && filtered.length === 0 && <p className="muted">데이터가 없습니다.</p>}
 
-        <div className="col" style={{ gap: 10 }}>
-          {filtered.map((a) => (
-            <AttemptRow key={a.id} a={a} onChange={load} />
-          ))}
-        </div>
+        <ChallengeGroupedView
+          items={filtered}
+          modeFilter={modeFilter}
+          onChange={load}
+        />
       </main>
     </>
+  )
+}
+
+// ── 차시·미션별 그룹화 뷰 ────────────────────────────────────────────────
+function ChallengeGroupedView({ items, modeFilter, onChange }) {
+  const [openKey, setOpenKey] = useState({}) // {`${mode}::${cid}`: true|false}
+
+  // 모드별·챌린지별 group by
+  const grouped = useMemo(() => {
+    // 두 계층: mode -> challenge_id -> attempts[]
+    const byMode = new Map()
+    for (const a of items) {
+      if (!byMode.has(a.mode)) byMode.set(a.mode, new Map())
+      const mMap = byMode.get(a.mode)
+      const cid = a.challenge_id || '(기타)'
+      if (!mMap.has(cid)) mMap.set(cid, [])
+      mMap.get(cid).push(a)
+    }
+    // 모드는 MODES 정의 순서대로
+    const modeList = []
+    for (const m of MODES) {
+      if (byMode.has(m.key)) {
+        const cMap = byMode.get(m.key)
+        const orderedIds = challengeIdsForMode(m.key)
+        const groups = []
+        for (const cid of orderedIds) {
+          if (cMap.has(cid)) {
+            groups.push([cid, cMap.get(cid)])
+            cMap.delete(cid)
+          }
+        }
+        for (const [cid, arr] of cMap) groups.push([cid, arr])
+        modeList.push({ mode: m, groups })
+        byMode.delete(m.key)
+      }
+    }
+    // 정의에 없는 mode (이론상 없음)
+    for (const [modeKey, cMap] of byMode) {
+      modeList.push({
+        mode: { key: modeKey, sessionNumber: '?', title: modeKey, emoji: '📁' },
+        groups: Array.from(cMap.entries()),
+      })
+    }
+    return modeList
+  }, [items])
+
+  // 첫 로드 시 모든 그룹 펼침
+  useEffect(() => {
+    const keys = {}
+    for (const { mode, groups } of grouped) {
+      for (const [cid] of groups) keys[`${mode.key}::${cid}`] = true
+    }
+    setOpenKey(keys)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grouped.length])
+
+  const toggle = (k) => setOpenKey({ ...openKey, [k]: !openKey[k] })
+
+  return (
+    <div className="col" style={{ gap: 14 }}>
+      {grouped.map(({ mode, groups }) => (
+        <div key={mode.key}>
+          {modeFilter === 'all' && (
+            <h2
+              style={{
+                fontSize: '1rem',
+                fontWeight: 700,
+                margin: '6px 0 8px',
+                color: 'var(--text-muted)',
+              }}
+            >
+              {mode.emoji} {mode.sessionNumber}차시 — {mode.title}
+            </h2>
+          )}
+          <div className="col" style={{ gap: 10 }}>
+            {groups.map(([cid, attempts]) => {
+              const ch = challengeMeta(mode.key, cid)
+              const k = `${mode.key}::${cid}`
+              const open = openKey[k] ?? true
+              const privateCount = attempts.filter(
+                (a) => a.is_public === false || a.self_check?.privateLetter
+              ).length
+              return (
+                <section key={cid} className="card" style={{ padding: 0 }}>
+                  <button
+                    onClick={() => toggle(k)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '12px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text)',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span style={{ fontSize: '1.3rem' }}>{ch?.emoji || '📁'}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.98rem', fontWeight: 700 }}>
+                        {ch?.title || cid}
+                        {ch?.level && (
+                          <span
+                            className="muted small"
+                            style={{ marginLeft: 8, fontWeight: 400 }}
+                          >
+                            Level {ch.level}
+                          </span>
+                        )}
+                      </div>
+                      <div className="muted small" style={{ marginTop: 2, fontSize: '0.78rem' }}>
+                        {modeFilter !== 'all' && (
+                          <span>{mode.sessionNumber}차시 · {mode.title} · </span>
+                        )}
+                        {ch?.description?.slice(0, 80) || ''}
+                      </div>
+                    </div>
+                    {privateCount > 0 && (
+                      <span
+                        className="tag"
+                        style={{
+                          background: 'var(--warning)',
+                          color: 'white',
+                          padding: '3px 10px',
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        🔒 {privateCount}
+                      </span>
+                    )}
+                    <span
+                      className="tag"
+                      style={{
+                        background: 'var(--accent)',
+                        color: 'white',
+                        padding: '3px 10px',
+                        fontSize: '0.8rem',
+                      }}
+                    >
+                      {attempts.length}개
+                    </span>
+                    <span className="muted" style={{ fontSize: '0.85rem' }}>{open ? '▲' : '▼'}</span>
+                  </button>
+                  {open && (
+                    <div style={{ padding: '0 16px 16px', borderTop: '1px solid var(--border)' }}>
+                      <div className="col" style={{ gap: 8, marginTop: 12 }}>
+                        {attempts.map((a) => (
+                          <AttemptRow key={a.id} a={a} onChange={onChange} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 
