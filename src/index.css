@@ -209,6 +209,9 @@ a:hover { text-decoration: underline; }
 }
 .tag.role { background: #4338ca; color: white; }
 .tag.context { background: #047857; color: white; }
+.tag.output { background: #b45309; color: white; }
+.tag.condition { background: #9333ea; color: white; }
+/* 옛 키 호환 — 예전 등록된 attempts의 라벨도 색이 깨지지 않게 */
 .tag.constraint { background: #b45309; color: white; }
 .tag.example { background: #9333ea; color: white; }
 
