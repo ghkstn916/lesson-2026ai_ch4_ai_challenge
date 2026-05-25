@@ -34,11 +34,10 @@ export default function WarmupMode() {
   const [error, setError] = useState('')
   const [history, setHistory] = useState([])
 
-  // 변형 실험 (④, ⑤)
+  // 변형 실험 (④, ⑤) — 학생이 편지에 직접 넣고 싶은 말을 자유롭게 적는 형태
   const [experiments, setExperiments] = useState([])
-  // experiments: [{ changedKey, oldValue, newValue, response, prompt }, ...]
-  const [expKey, setExpKey] = useState('condition')        // 무엇을 바꿀지 — 기본은 조건
-  const [expValue, setExpValue] = useState('')             // 새 값
+  // experiments: [{ id, userRequest, response, prompt, registered, rowId }, ...]
+  const [expRequest, setExpRequest] = useState('')
   const [expLoading, setExpLoading] = useState(false)
   const [expError, setExpError] = useState('')
 
@@ -49,8 +48,7 @@ export default function WarmupMode() {
     setOutput('')
     setError('')
     setExperiments([])
-    setExpKey('condition')
-    setExpValue('')
+    setExpRequest('')
     setExpError('')
   }, [challenge.id])
 
@@ -125,41 +123,34 @@ export default function WarmupMode() {
     }
   }
 
-  // ── 변형 실험: 한 요소만 바꿔서 다시 보내기 ────────────────────────────────
+  // ── 변형 실험: 내가 편지에 넣고 싶은 말을 자유롭게 ────────────────────────
   const runExperiment = async () => {
     setExpError('')
-    const trimmed = (expValue || '').trim()
-    if (!trimmed) {
-      setExpError(`새 [${VARIANT_LABELS.find((v) => v.key === expKey)?.label}] 값을 입력하세요.`)
+    const req = (expRequest || '').trim()
+    if (!req) {
+      setExpError('편지에 넣고 싶은 말이나 더하고 싶은 표현을 적어주세요.')
       return
     }
-    if (trimmed === (parts[expKey] || '')) {
-      setExpError('이전과 같은 값이에요. 다른 값을 시도해보세요.')
-      return
-    }
-    const newParts = { ...parts, [expKey]: trimmed }
-    const newPrompt = composeWarmupPrompt(newParts, challenge)
+    const newPrompt = `${composedPrompt}\n\n[내가 꼭 넣고 싶은 말]\n${req}`
 
     setExpLoading(true)
     try {
       const { text } = await callClaude({
         model: 'claude-haiku-4-5-20251001',
-        maxTokens: 600,
+        maxTokens: 700,
         system: WARMUP_SYSTEM_PROMPT,
         messages: [{ role: 'user', content: newPrompt }],
       })
       const exp = {
         id: Date.now(),
-        changedKey: expKey,
-        oldValue: parts[expKey],
-        newValue: trimmed,
+        userRequest: req,
         response: text,
         prompt: newPrompt,
         registered: false,
         rowId: null,
       }
       setExperiments([exp, ...experiments])
-      setExpValue('')
+      setExpRequest('')
     } catch (e) {
       setExpError(e.message || '실험 실패')
     }
@@ -169,7 +160,6 @@ export default function WarmupMode() {
   const registerExperiment = async (exp) => {
     if (exp.registered) return
     try {
-      const newParts = { ...parts, [exp.changedKey]: exp.newValue }
       const row = await insertAttempt({
         student_id: studentId,
         session_number: 1,
@@ -177,12 +167,12 @@ export default function WarmupMode() {
         challenge_id: challenge.id,
         prompt: exp.prompt,
         output_text: exp.response,
-        variant_label: exp.changedKey,
         self_check: {
-          ...newParts,
+          ...parts,
           isBaseline: false,
-          experiment: { changed: exp.changedKey, from: exp.oldValue, to: exp.newValue },
+          userRequest: exp.userRequest,
         },
+        reflection: exp.userRequest,
       })
       setExperiments(experiments.map((e) => (e.id === exp.id ? { ...e, registered: true, rowId: row.id } : e)))
       setHistory([row, ...history])
@@ -364,191 +354,115 @@ export default function WarmupMode() {
             </div>
           )}
 
-          {/* ④ 변형 실험 — ③ 응답이 나온 후에만 표시 */}
+          {/* ④ 내가 하고 싶은 말 더하기 — ③ 응답이 나온 후에만 표시 */}
           {output && (
-            <div
-              className="card"
-              style={{ borderLeft: '4px solid var(--warning)' }}
-            >
+            <div className="card" style={{ borderLeft: '4px solid var(--warning)' }}>
               <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>
-                ④ 변형 실험 — 한 요소만 바꿔서 내 편지 만들기
+                ④ 내가 하고 싶은 말 더하기
               </p>
-              <p className="muted small" style={{ marginBottom: 14, fontSize: '0.85rem' }}>
-                기본 편지는 받았으니 이제 본인 스타일로 바꿔봅시다. <strong>출력</strong>이나{' '}
-                <strong>조건</strong>에 원하는 양식·글귀·어조를 직접 적어가며 가장 마음에 드는 한 통을 완성하세요.
+              <p className="muted small" style={{ marginBottom: 14, fontSize: '0.88rem', lineHeight: 1.7 }}>
+                기본 편지를 받았다면, 이번엔 <strong>내가 미래의 나(친구)에게 진짜로 전하고 싶은 한마디</strong>를 직접 적어보세요.
+                추억, 다짐, 작은 표현 무엇이든 좋아요. AI가 그 마음을 편지 안에 자연스럽게 녹여서 다시 써줍니다.
               </p>
 
-              <div className="field" style={{ marginBottom: 12 }}>
-                <span>어떤 요소를 바꿀까?</span>
-                <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
-                  {VARIANT_LABELS.map((v) => (
-                    <button
-                      key={v.key}
-                      className="btn"
-                      onClick={() => {
-                        setExpKey(v.key)
-                        setExpValue('')
-                      }}
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: '0.85rem',
-                        background: expKey === v.key ? v.color : 'var(--surface2)',
-                        borderColor: expKey === v.key ? v.color : 'var(--border)',
-                        color: expKey === v.key ? 'white' : 'var(--text)',
-                      }}
-                    >
-                      {expKey === v.key ? '● ' : '○ '}{v.label}
-                    </button>
-                  ))}
-                </div>
+              <textarea
+                value={expRequest}
+                onChange={(e) => setExpRequest(e.target.value)}
+                placeholder={`예) "5월에 같이 갔던 한강 야자, 그때 네가 한 말을 꼭 떠올렸으면 좋겠어"
+예) "흔들릴 때 너는 혼자가 아니라는 한 줄을 꼭 넣어줘"
+예) "마지막에 우리 셋이 다시 모일 봄을 기약하는 문장으로 끝맺어줘"`}
+                rows={4}
+                style={{
+                  width: '100%',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  padding: '10px 12px',
+                  color: 'var(--text)',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                  resize: 'vertical',
+                  lineHeight: 1.6,
+                }}
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runExperiment()
+                }}
+              />
+
+              <button
+                className="btn btn-primary"
+                onClick={runExperiment}
+                disabled={expLoading || !expRequest.trim()}
+                style={{ width: '100%', marginTop: 12, padding: '12px', fontSize: '0.98rem' }}
+              >
+                {expLoading ? '편지 다시 쓰는 중...' : '✉️ 내 말 더해서 편지 다시 받기 (Ctrl+Enter)'}
+              </button>
+
+              {expError && <p className="error" style={{ marginTop: 10 }}>{expError}</p>}
+
+              <p className="muted small" style={{ marginTop: 10, fontSize: '0.78rem' }}>
+                💡 여러 번 시도할 수 있어요. 마음에 드는 편지가 나올 때까지 다른 말을 적어 다시 받아보세요.
+              </p>
+            </div>
+          )}
+
+          {/* ⑤ 응답 누적 — 새 편지가 위로 쌓임 */}
+          {experiments.map((exp, idx) => (
+            <div
+              key={exp.id}
+              className="card"
+              style={{ borderLeft: '4px solid var(--accent)' }}
+            >
+              <div className="row" style={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
+                <p style={{ fontWeight: 700, fontSize: '1rem' }}>
+                  💌 편지 #{experiments.length - idx}
+                </p>
+                <span className="muted small">
+                  내가 더한 말 반영
+                </span>
               </div>
 
               <div
                 style={{
-                  padding: 10,
-                  background: 'var(--bg)',
-                  borderRadius: 'var(--radius)',
+                  padding: '10px 12px',
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  borderLeft: '2px solid var(--warning)',
+                  borderRadius: 4,
                   fontSize: '0.85rem',
-                  marginBottom: 10,
+                  marginTop: 10,
+                  marginBottom: 12,
+                  whiteSpace: 'pre-wrap',
+                  color: 'var(--text-muted)',
                 }}
               >
-                <span className="muted">현재 </span>
-                <span className={`tag ${expKey}`} style={{ marginRight: 4 }}>
-                  {VARIANT_LABELS.find((v) => v.key === expKey)?.label}
-                </span>
-                <strong>{parts[expKey] || '(비어있음)'}</strong>
-                <span className="muted"> → 새로 바꿀 값:</span>
+                <strong style={{ color: 'var(--warning)' }}>💬 내가 더한 말:</strong>{' '}
+                {exp.userRequest}
               </div>
 
-              <div className="row" style={{ gap: 6 }}>
-                <textarea
-                  value={expValue}
-                  onChange={(e) => setExpValue(e.target.value)}
-                  placeholder={
-                    expKey === 'output'
-                      ? '예) 손편지 한 통, SNS 메시지, 시 한 편, 5줄 엽서… — 본인이 원하는 양식을 자유롭게 적어보세요'
-                      : expKey === 'condition'
-                      ? '예) 마지막 줄에 별 한 줄 비유, 친구 이름을 한 번만, 옛 추억 한 토막 포함… — 직접 조건을 적어보세요'
-                      : `새 [${VARIANT_LABELS.find((v) => v.key === expKey)?.label}] 값을 자유롭게 입력`
-                  }
-                  rows={2}
-                  style={{
-                    flex: 1,
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius)',
-                    padding: '8px 10px',
-                    color: 'var(--text)',
-                    fontSize: '0.9rem',
-                    outline: 'none',
-                    fontFamily: 'inherit',
-                    resize: 'vertical',
-                  }}
-                  onKeyDown={(e) => {
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runExperiment()
-                  }}
-                />
-                <button
-                  className="btn btn-primary"
-                  onClick={runExperiment}
-                  disabled={expLoading || !expValue.trim()}
-                  style={{ padding: '8px 16px', alignSelf: 'stretch' }}
-                >
-                  {expLoading ? '실험 중...' : '🔄 실험 보내기'}
-                </button>
-              </div>
-
-              {(challenge.suggestions[expKey] || []).length > 0 && (
-                <>
-                  <p
-                    className="muted small"
-                    style={{ marginTop: 10, fontSize: '0.78rem' }}
-                  >
-                    💡 직접 입력이 가장 좋지만, 막막하면 아래 예시를 참고하거나 클릭해 살짝 수정해보세요:
-                  </p>
-                  <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {challenge.suggestions[expKey].map((s) => (
-                      <button
-                        key={s}
-                        className="btn btn-ghost"
-                        onClick={() => setExpValue(s)}
-                        style={{
-                          padding: '3px 8px',
-                          fontSize: '0.75rem',
-                          border: '1px solid var(--border)',
-                          background: 'transparent',
-                          color: 'var(--text-muted)',
-                        }}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {expError && <p className="error" style={{ marginTop: 10 }}>{expError}</p>}
-            </div>
-          )}
-
-          {/* ⑤ 실험 결과 누적 — 새 응답이 위로 쌓임 */}
-          {experiments.map((exp, idx) => {
-            const meta = VARIANT_LABELS.find((v) => v.key === exp.changedKey)
-            return (
               <div
-                key={exp.id}
-                className="card"
-                style={{ borderLeft: `4px solid ${meta?.color || 'var(--accent)'}` }}
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  fontSize: '1rem',
+                  lineHeight: 1.85,
+                  padding: '14px 16px',
+                  background: 'var(--bg)',
+                  borderRadius: 'var(--radius)',
+                }}
               >
-                <div className="row" style={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
-                  <p style={{ fontWeight: 700, fontSize: '1rem' }}>
-                    🔬 실험 결과 #{experiments.length - idx}
-                  </p>
-                  <span className="muted small">
-                    {meta?.label} 변경
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    padding: '8px 12px',
-                    background: 'var(--bg)',
-                    borderRadius: 'var(--radius)',
-                    fontSize: '0.85rem',
-                    marginTop: 8,
-                    marginBottom: 12,
-                  }}
-                >
-                  <span className={`tag ${exp.changedKey}`}>{meta?.label}</span>
-                  <span style={{ color: 'var(--text-muted)' }}> {exp.oldValue || '(빈값)'}</span>
-                  <span style={{ margin: '0 8px' }}>→</span>
-                  <strong>{exp.newValue}</strong>
-                </div>
-
-                <div
-                  style={{
-                    whiteSpace: 'pre-wrap',
-                    fontSize: '0.95rem',
-                    lineHeight: 1.8,
-                    padding: '12px 14px',
-                    background: 'var(--bg)',
-                    borderRadius: 'var(--radius)',
-                  }}
-                >
-                  {exp.response}
-                </div>
-
-                <button
-                  className="btn btn-primary"
-                  onClick={() => registerExperiment(exp)}
-                  disabled={exp.registered}
-                  style={{ width: '100%', marginTop: 10 }}
-                >
-                  {exp.registered ? '✓ 등록됨' : '📌 이 실험 갤러리에 등록'}
-                </button>
+                {exp.response}
               </div>
-            )
-          })}
+
+              <button
+                className="btn btn-primary"
+                onClick={() => registerExperiment(exp)}
+                disabled={exp.registered}
+                style={{ width: '100%', marginTop: 10 }}
+              >
+                {exp.registered ? '✓ 등록됨 — D-30에 전달됩니다' : '📌 이 편지 갤러리에 등록'}
+              </button>
+            </div>
+          ))}
         </div>
       </div>
 
