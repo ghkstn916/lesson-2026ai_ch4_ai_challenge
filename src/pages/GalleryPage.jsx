@@ -221,7 +221,12 @@ function GalleryCard({ a, mode }) {
 
       {mode === 'visual' && a.output_text && (
         <div style={{ marginTop: 10 }}>
-          <VPythonRunner code={a.output_text} height="180px" />
+          <VPythonRunner
+            code={a.output_text}
+            height="180px"
+            showRotateToggle={false}
+            defaultRotate={true}
+          />
         </div>
       )}
 
