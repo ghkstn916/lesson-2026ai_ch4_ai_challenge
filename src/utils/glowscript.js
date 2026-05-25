@@ -7,82 +7,121 @@
  *   - 마우스 휠 → 줌
  *   - autoRotate: true면 마우스 비조작 시 천천히 자동 회전 (드래그 후 2초 정지)
  *
- * GlowScript 기본 컨트롤(Shift/우클릭 드래그)이 학생에게 직관적이지 않아
- * scene.userspin / userpan은 끄고 직접 핸들러를 부착한다.
+ * 구현 노트:
+ *   GlowScript 기본 회전은 우클릭/Shift+드래그라 학생이 헷갈림.
+ *   scene.userspin/pan을 끄고 native addEventListener(capture:true)로
+ *   GlowScript 자체 핸들러보다 먼저 마우스 이벤트를 잡아서 카메라를 직접 제어.
  */
 
 export function buildGlowScriptHTML(code, options = {}) {
   const { autoRotate = false } = options
 
+  // 학생 코드 다음에 삽입할 카메라 컨트롤 스크립트.
+  // scene은 __main__ 클로저의 변수이므로 같은 함수 안에서 접근 가능.
   const controlScript = `
-;(function(){
-    var azimuth = Math.PI * 0.7;
-    var elevation = 0.45;
-    var dragging = false;
-    var lastX = 0, lastY = 0;
-    var lastDragAt = 0;
-    var autoRotate = ${autoRotate ? 'true' : 'false'};
+try {
+    (function(){
+        var azimuth = Math.PI * 0.7;
+        var elevation = 0.45;
+        var distance = (scene && scene.range) ? Math.max(8, scene.range * 2.2) : 14;
+        var dragging = false;
+        var lastX = 0, lastY = 0;
+        var lastDragAt = 0;
+        var autoRotateOn = ${autoRotate ? 'true' : 'false'};
 
-    function applyAngle() {
-        if (!scene) return;
-        var ce = Math.cos(elevation);
-        scene.forward = vec(
-            Math.sin(azimuth) * ce,
-            -Math.sin(elevation),
-            Math.cos(azimuth) * ce
-        );
-    }
-    applyAngle();
+        function applyAngle() {
+            if (!scene) return;
+            var ce = Math.cos(elevation);
+            var px = Math.sin(azimuth) * ce * distance;
+            var py = Math.sin(elevation) * distance;
+            var pz = Math.cos(azimuth) * ce * distance;
+            try {
+                if (scene.camera) {
+                    scene.camera.pos = vec(px, py, pz);
+                    scene.camera.axis = vec(-px, -py, -pz);
+                } else {
+                    scene.forward = vec(-Math.sin(azimuth)*ce, -Math.sin(elevation), -Math.cos(azimuth)*ce);
+                }
+            } catch (err) {
+                try {
+                    scene.forward = vec(-Math.sin(azimuth)*ce, -Math.sin(elevation), -Math.cos(azimuth)*ce);
+                } catch (e2) {}
+            }
+        }
 
-    // GlowScript 자체 회전·팬은 끄고 우리 핸들러가 잡는다. 줌(휠)만 유지.
-    scene.userspin = false;
-    scene.userpan = false;
-    scene.userzoom = true;
+        // GlowScript 기본 회전·팬 비활성화 — 우리 핸들러가 직접 처리
+        try { scene.userspin = false; } catch (e) {}
+        try { scene.userpan = false; } catch (e) {}
+        try { scene.userzoom = false; } catch (e) {} // 휠도 우리가 처리
 
-    function bindCanvas() {
-        var $c = $('canvas').first();
-        if ($c.length === 0) { setTimeout(bindCanvas, 100); return; }
-        $c.css('cursor', 'grab').on('mousedown', function(e) {
-            if (e.button !== 0) return;          // 좌클릭만
+        applyAngle();
+
+        function onDown(e) {
+            if (e.button !== 0 && e.button !== undefined) return; // 좌클릭만
             dragging = true;
             lastX = e.clientX;
             lastY = e.clientY;
             lastDragAt = Date.now();
-            $c.css('cursor', 'grabbing');
+            var c = document.querySelector('canvas');
+            if (c) c.style.cursor = 'grabbing';
             e.preventDefault();
-        });
-    }
-    setTimeout(bindCanvas, 50);
-
-    $(document).on('mousemove', function(e) {
-        if (!dragging) return;
-        var dx = e.clientX - lastX;
-        var dy = e.clientY - lastY;
-        lastX = e.clientX;
-        lastY = e.clientY;
-        // 좌우 드래그 → azimuth, 상하 드래그 → elevation
-        azimuth -= dx * 0.012;
-        elevation = Math.max(-1.4, Math.min(1.4, elevation + dy * 0.012));
-        lastDragAt = Date.now();
-        applyAngle();
-    });
-    $(document).on('mouseup mouseleave', function() {
-        if (dragging) {
-            dragging = false;
-            $('canvas').first().css('cursor', 'grab');
+            e.stopPropagation();
         }
-    });
-
-    // 자동 회전 — 드래그 후 2초 동안은 잠시 멈춤
-    if (autoRotate) {
-        setInterval(function() {
-            if (dragging) return;
-            if (Date.now() - lastDragAt < 2000) return;
-            azimuth += 0.006;
+        function onMove(e) {
+            if (!dragging) return;
+            var dx = e.clientX - lastX;
+            var dy = e.clientY - lastY;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            azimuth -= dx * 0.012;
+            elevation = Math.max(-1.4, Math.min(1.4, elevation + dy * 0.012));
+            lastDragAt = Date.now();
             applyAngle();
-        }, 30);
-    }
-})();
+        }
+        function onUp() {
+            if (!dragging) return;
+            dragging = false;
+            var c = document.querySelector('canvas');
+            if (c) c.style.cursor = 'grab';
+        }
+        function onWheel(e) {
+            distance = Math.max(3, Math.min(60, distance * (1 + e.deltaY * 0.001)));
+            applyAngle();
+            e.preventDefault();
+        }
+
+        function bindCanvas(tries) {
+            tries = tries || 0;
+            var canvasEl = document.querySelector('canvas');
+            if (!canvasEl) {
+                if (tries > 80) return; // ~8초 후 포기
+                setTimeout(function(){ bindCanvas(tries + 1); }, 100);
+                return;
+            }
+            canvasEl.style.cursor = 'grab';
+
+            // capture 단계에서 잡아서 GlowScript 핸들러보다 먼저 실행
+            canvasEl.addEventListener('mousedown', onDown, true);
+            canvasEl.addEventListener('wheel', onWheel, { passive: false, capture: true });
+        }
+        // GlowScript canvas가 만들어지는 시점이 비동기일 수 있어 약간 지연 후 폴링
+        setTimeout(function(){ bindCanvas(0); }, 50);
+
+        document.addEventListener('mousemove', onMove, true);
+        document.addEventListener('mouseup', onUp, true);
+
+        if (autoRotateOn) {
+            setInterval(function() {
+                if (dragging) return;
+                if (Date.now() - lastDragAt < 2000) return;
+                azimuth += 0.008;
+                applyAngle();
+            }, 30);
+        }
+    })();
+} catch (mainErr) {
+    console.error('camera-control error', mainErr);
+}
 `
 
   return `<!DOCTYPE html>
