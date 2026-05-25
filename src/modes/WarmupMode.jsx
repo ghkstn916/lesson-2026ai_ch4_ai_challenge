@@ -29,12 +29,24 @@ export default function WarmupMode() {
   const [error, setError] = useState('')
   const [history, setHistory] = useState([])
 
-  // 챌린지 바뀌면 빌더 초기화
+  // 변형 실험 (④, ⑤)
+  const [experiments, setExperiments] = useState([])
+  // experiments: [{ changedKey, oldValue, newValue, response, prompt }, ...]
+  const [expKey, setExpKey] = useState('context')          // 무엇을 바꿀지
+  const [expValue, setExpValue] = useState('')             // 새 값
+  const [expLoading, setExpLoading] = useState(false)
+  const [expError, setExpError] = useState('')
+
+  // 챌린지 바뀌면 빌더 + 실험 모두 초기화
   useEffect(() => {
     setParts(challenge.defaults)
     setConfirmed({ ...emptyConfirm(), role: !!challenge.defaults.role })
     setOutput('')
     setError('')
+    setExperiments([])
+    setExpKey('context')
+    setExpValue('')
+    setExpError('')
   }, [challenge.id])
 
   // 내 시도 기록
@@ -97,15 +109,78 @@ export default function WarmupMode() {
         challenge_id: challenge.id,
         prompt: composedPrompt,
         output_text: output,
-        self_check: { ...parts },
+        self_check: { ...parts, isBaseline: true },
         reflection: reflection || null,
       })
       setHistory([row, ...history])
       setReflection('')
-      setOutput('')
-      // 다음 시도를 위해 빌더는 그대로 두되 확인 상태 유지(같은 prompt 재실행도 가능)
     } catch (e) {
       setError(e.message || '등록 실패')
+    }
+  }
+
+  // ── 변형 실험: 한 요소만 바꿔서 다시 보내기 ────────────────────────────────
+  const runExperiment = async () => {
+    setExpError('')
+    const trimmed = (expValue || '').trim()
+    if (!trimmed) {
+      setExpError(`새 [${VARIANT_LABELS.find((v) => v.key === expKey)?.label}] 값을 입력하세요.`)
+      return
+    }
+    if (trimmed === (parts[expKey] || '')) {
+      setExpError('이전과 같은 값이에요. 다른 값을 시도해보세요.')
+      return
+    }
+    const newParts = { ...parts, [expKey]: trimmed }
+    const newPrompt = composeWarmupPrompt(newParts, challenge)
+
+    setExpLoading(true)
+    try {
+      const { text } = await callClaude({
+        model: 'claude-haiku-4-5-20251001',
+        maxTokens: 600,
+        messages: [{ role: 'user', content: newPrompt }],
+      })
+      const exp = {
+        id: Date.now(),
+        changedKey: expKey,
+        oldValue: parts[expKey],
+        newValue: trimmed,
+        response: text,
+        prompt: newPrompt,
+        registered: false,
+        rowId: null,
+      }
+      setExperiments([exp, ...experiments])
+      setExpValue('')
+    } catch (e) {
+      setExpError(e.message || '실험 실패')
+    }
+    setExpLoading(false)
+  }
+
+  const registerExperiment = async (exp) => {
+    if (exp.registered) return
+    try {
+      const newParts = { ...parts, [exp.changedKey]: exp.newValue }
+      const row = await insertAttempt({
+        student_id: studentId,
+        session_number: 1,
+        mode: 'warmup',
+        challenge_id: challenge.id,
+        prompt: exp.prompt,
+        output_text: exp.response,
+        variant_label: exp.changedKey,
+        self_check: {
+          ...newParts,
+          isBaseline: false,
+          experiment: { changed: exp.changedKey, from: exp.oldValue, to: exp.newValue },
+        },
+      })
+      setExperiments(experiments.map((e) => (e.id === exp.id ? { ...e, registered: true, rowId: row.id } : e)))
+      setHistory([row, ...history])
+    } catch (e) {
+      setExpError(e.message || '등록 실패')
     }
   }
 
@@ -281,6 +356,176 @@ export default function WarmupMode() {
               </button>
             </div>
           )}
+
+          {/* ④ 변형 실험 — ③ 응답이 나온 후에만 표시 */}
+          {output && (
+            <div
+              className="card"
+              style={{ borderLeft: '4px solid var(--warning)' }}
+            >
+              <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>
+                ④ 변형 실험 — 한 요소만 바꿔서 다시 보내기
+              </p>
+              <p className="muted small" style={{ marginBottom: 14, fontSize: '0.85rem' }}>
+                같은 미션에 한 가지 요소만 바꿔보면 결과가 어떻게 달라질까요?
+                기본은 <strong>맥락</strong> — 다른 요소도 골라 시도해보세요.
+              </p>
+
+              <div className="field" style={{ marginBottom: 12 }}>
+                <span>어떤 요소를 바꿀까?</span>
+                <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+                  {VARIANT_LABELS.map((v) => (
+                    <button
+                      key={v.key}
+                      className="btn"
+                      onClick={() => {
+                        setExpKey(v.key)
+                        setExpValue('')
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '0.85rem',
+                        background: expKey === v.key ? v.color : 'var(--surface2)',
+                        borderColor: expKey === v.key ? v.color : 'var(--border)',
+                        color: expKey === v.key ? 'white' : 'var(--text)',
+                      }}
+                    >
+                      {expKey === v.key ? '● ' : '○ '}{v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: 10,
+                  background: 'var(--bg)',
+                  borderRadius: 'var(--radius)',
+                  fontSize: '0.85rem',
+                  marginBottom: 10,
+                }}
+              >
+                <span className="muted">현재 </span>
+                <span className={`tag ${expKey}`} style={{ marginRight: 4 }}>
+                  {VARIANT_LABELS.find((v) => v.key === expKey)?.label}
+                </span>
+                <strong>{parts[expKey] || '(비어있음)'}</strong>
+                <span className="muted"> → 새로 바꿀 값:</span>
+              </div>
+
+              <div className="row" style={{ gap: 6 }}>
+                <input
+                  type="text"
+                  value={expValue}
+                  onChange={(e) => setExpValue(e.target.value)}
+                  placeholder={`새 [${VARIANT_LABELS.find((v) => v.key === expKey)?.label}] 값`}
+                  style={{
+                    flex: 1,
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)',
+                    padding: '8px 10px',
+                    color: 'var(--text)',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') runExperiment()
+                  }}
+                />
+                <button
+                  className="btn btn-primary"
+                  onClick={runExperiment}
+                  disabled={expLoading || !expValue.trim()}
+                  style={{ padding: '8px 16px' }}
+                >
+                  {expLoading ? '실험 중...' : '🔄 실험 보내기'}
+                </button>
+              </div>
+
+              {(challenge.suggestions[expKey] || []).length > 0 && (
+                <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {challenge.suggestions[expKey].map((s) => (
+                    <button
+                      key={s}
+                      className="btn btn-ghost"
+                      onClick={() => setExpValue(s)}
+                      style={{
+                        padding: '3px 8px',
+                        fontSize: '0.75rem',
+                        border: '1px solid var(--border)',
+                        background: 'transparent',
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {expError && <p className="error" style={{ marginTop: 10 }}>{expError}</p>}
+            </div>
+          )}
+
+          {/* ⑤ 실험 결과 누적 — 새 응답이 위로 쌓임 */}
+          {experiments.map((exp, idx) => {
+            const meta = VARIANT_LABELS.find((v) => v.key === exp.changedKey)
+            return (
+              <div
+                key={exp.id}
+                className="card"
+                style={{ borderLeft: `4px solid ${meta?.color || 'var(--accent)'}` }}
+              >
+                <div className="row" style={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
+                  <p style={{ fontWeight: 700, fontSize: '1rem' }}>
+                    🔬 실험 결과 #{experiments.length - idx}
+                  </p>
+                  <span className="muted small">
+                    {meta?.label} 변경
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    background: 'var(--bg)',
+                    borderRadius: 'var(--radius)',
+                    fontSize: '0.85rem',
+                    marginTop: 8,
+                    marginBottom: 12,
+                  }}
+                >
+                  <span className={`tag ${exp.changedKey}`}>{meta?.label}</span>
+                  <span style={{ color: 'var(--text-muted)' }}> {exp.oldValue || '(빈값)'}</span>
+                  <span style={{ margin: '0 8px' }}>→</span>
+                  <strong>{exp.newValue}</strong>
+                </div>
+
+                <div
+                  style={{
+                    whiteSpace: 'pre-wrap',
+                    fontSize: '0.95rem',
+                    lineHeight: 1.8,
+                    padding: '12px 14px',
+                    background: 'var(--bg)',
+                    borderRadius: 'var(--radius)',
+                  }}
+                >
+                  {exp.response}
+                </div>
+
+                <button
+                  className="btn btn-primary"
+                  onClick={() => registerExperiment(exp)}
+                  disabled={exp.registered}
+                  style={{ width: '100%', marginTop: 10 }}
+                >
+                  {exp.registered ? '✓ 등록됨' : '📌 이 실험 갤러리에 등록'}
+                </button>
+              </div>
+            )
+          })}
         </div>
       </div>
 
