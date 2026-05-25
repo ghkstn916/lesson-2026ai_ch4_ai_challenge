@@ -12,13 +12,13 @@ export const WARMUP_CHALLENGES = [
     description:
       '같은 미션에 4요소(역할·맥락·출력·조건) 중 하나만 바꿔보며 결과가 어떻게 달라지는지 관찰해보세요.',
     defaults: {
-      role: '나에게 편지쓰는 고3 친한 친구',
+      role: '나에게 쓰는 나',
       context: '',
       output: '',
       condition: '',
     },
     suggestions: {
-      role: ['나에게 편지쓰는 고3 친한 친구', '따뜻한 작가', '엄격한 선생님', '졸업한 선배'],
+      role: ['나에게 쓰는 나', '따뜻한 작가', '엄격한 선생님', '졸업한 선배'],
       context: ['수능 D-30', '슬럼프', '모의고사 직후', '졸업식 전날'],
       output: [
         '한 줄 응원 문장',
