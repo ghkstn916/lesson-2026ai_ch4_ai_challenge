@@ -25,8 +25,20 @@ export default function GalleryPage() {
 
   const meta = MODE_BY_KEY[mode]
 
-  // 챌린지별 그룹화
+  // 챌린지별 그룹화 + 그룹 내 점수순(내림차순) 정렬
   const groups = useMemo(() => {
+    const scoreOf = (a) => {
+      const s = a.teacher_score ?? a.self_check?.score
+      return typeof s === 'number' ? s : -Infinity
+    }
+    const sortByScore = (arr) =>
+      [...arr].sort((a, b) => {
+        const diff = scoreOf(b) - scoreOf(a)
+        if (diff !== 0) return diff
+        // 점수가 같으면 최신순
+        return new Date(b.created_at) - new Date(a.created_at)
+      })
+
     const map = new Map()
     for (const a of items) {
       const cid = a.challenge_id || '(기타)'
@@ -38,11 +50,11 @@ export default function GalleryPage() {
     const result = []
     for (const cid of orderedIds) {
       if (map.has(cid)) {
-        result.push([cid, map.get(cid)])
+        result.push([cid, sortByScore(map.get(cid))])
         map.delete(cid)
       }
     }
-    for (const [cid, arr] of map) result.push([cid, arr])
+    for (const [cid, arr] of map) result.push([cid, sortByScore(arr)])
     return result
   }, [items, mode])
 
