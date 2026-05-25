@@ -165,6 +165,7 @@ export default function VPythonRunner({
         >
           <span>🖱 클릭+드래그 = 회전</span>
           <span>휠 = 줌</span>
+          <span style={{ opacity: 0.6 }}>(안 되면 우클릭·Shift+드래그)</span>
         </div>
       )}
 

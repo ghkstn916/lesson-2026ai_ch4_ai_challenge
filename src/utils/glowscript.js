@@ -2,62 +2,61 @@
  * GlowScript VPython 3.2 HTML 빌더
  * Blob URL iframe으로 렌더링
  *
- * 학생 친화 컨트롤:
- *   - 좌클릭 + 드래그 → 카메라 회전 (azimuth + elevation)
+ * 컨트롤 (의도):
+ *   - 좌클릭 + 드래그 → 카메라 회전
  *   - 마우스 휠 → 줌
- *   - autoRotate: true면 마우스 비조작 시 천천히 자동 회전 (드래그 후 2초 정지)
+ *   - 백업: GlowScript 기본 우클릭/Shift+드래그도 활성화 유지
  *
- * 구현 노트:
- *   GlowScript 기본 회전은 우클릭/Shift+드래그라 학생이 헷갈림.
- *   scene.userspin/pan을 끄고 native addEventListener(capture:true)로
- *   GlowScript 자체 핸들러보다 먼저 마우스 이벤트를 잡아서 카메라를 직접 제어.
+ * 디버그: 우상단 작은 박스에 현재 상태 표시 (캔버스 발견·마우스다운 등)
  */
 
 export function buildGlowScriptHTML(code, options = {}) {
   const { autoRotate = false } = options
 
-  // 학생 코드 다음에 삽입할 카메라 컨트롤 스크립트.
-  // scene은 __main__ 클로저의 변수이므로 같은 함수 안에서 접근 가능.
   const controlScript = `
 try {
     (function(){
+        // ── 디버그 표시 ────────────────────────────────────────────────────
+        function dbg(msg) {
+            var d = document.getElementById('__dbg__');
+            if (d) d.textContent = msg;
+        }
+
+        // ── 카메라 상태 ────────────────────────────────────────────────────
         var azimuth = Math.PI * 0.7;
         var elevation = 0.45;
-        var distance = (scene && scene.range) ? Math.max(8, scene.range * 2.2) : 14;
+        var distance = 14;
         var dragging = false;
         var lastX = 0, lastY = 0;
         var lastDragAt = 0;
         var autoRotateOn = ${autoRotate ? 'true' : 'false'};
+        var rotationCount = 0;
 
         function applyAngle() {
-            if (!scene) return;
+            if (typeof scene === 'undefined' || !scene) { dbg('no scene'); return; }
             var ce = Math.cos(elevation);
-            var px = Math.sin(azimuth) * ce * distance;
-            var py = Math.sin(elevation) * distance;
-            var pz = Math.cos(azimuth) * ce * distance;
+            var fx = -Math.sin(azimuth) * ce;
+            var fy = -Math.sin(elevation);
+            var fz = -Math.cos(azimuth) * ce;
             try {
-                if (scene.camera) {
-                    scene.camera.pos = vec(px, py, pz);
-                    scene.camera.axis = vec(-px, -py, -pz);
-                } else {
-                    scene.forward = vec(-Math.sin(azimuth)*ce, -Math.sin(elevation), -Math.cos(azimuth)*ce);
-                }
+                scene.forward = vec(fx, fy, fz);
+                rotationCount++;
             } catch (err) {
-                try {
-                    scene.forward = vec(-Math.sin(azimuth)*ce, -Math.sin(elevation), -Math.cos(azimuth)*ce);
-                } catch (e2) {}
+                dbg('forward err: ' + err.message);
             }
         }
 
-        // GlowScript 기본 회전·팬 비활성화 — 우리 핸들러가 직접 처리
-        try { scene.userspin = false; } catch (e) {}
+        // GlowScript 기본 회전은 백업으로 켜둠 (우리 좌클릭이 안 잡혀도 우클릭/Shift는 작동)
+        try { scene.userspin = true; } catch (e) {}
         try { scene.userpan = false; } catch (e) {}
-        try { scene.userzoom = false; } catch (e) {} // 휠도 우리가 처리
+        try { scene.userzoom = true; } catch (e) {}
 
         applyAngle();
 
+        // ── 마우스 핸들러 (좌클릭) ─────────────────────────────────────────
         function onDown(e) {
-            if (e.button !== 0 && e.button !== undefined) return; // 좌클릭만
+            dbg('down b=' + e.button);
+            if (e.button !== 0 && e.button !== undefined) return;
             dragging = true;
             lastX = e.clientX;
             lastY = e.clientY;
@@ -65,7 +64,7 @@ try {
             var c = document.querySelector('canvas');
             if (c) c.style.cursor = 'grabbing';
             e.preventDefault();
-            e.stopPropagation();
+            // stopPropagation은 안 함 — GlowScript도 자기 이벤트 받게
         }
         function onMove(e) {
             if (!dragging) return;
@@ -77,38 +76,46 @@ try {
             elevation = Math.max(-1.4, Math.min(1.4, elevation + dy * 0.012));
             lastDragAt = Date.now();
             applyAngle();
+            dbg('drag rot=' + rotationCount + ' az=' + azimuth.toFixed(2));
         }
         function onUp() {
             if (!dragging) return;
             dragging = false;
             var c = document.querySelector('canvas');
             if (c) c.style.cursor = 'grab';
+            dbg('up rot=' + rotationCount);
         }
         function onWheel(e) {
             distance = Math.max(3, Math.min(60, distance * (1 + e.deltaY * 0.001)));
             applyAngle();
             e.preventDefault();
+            dbg('wheel d=' + distance.toFixed(1));
         }
 
         function bindCanvas(tries) {
             tries = tries || 0;
             var canvasEl = document.querySelector('canvas');
             if (!canvasEl) {
-                if (tries > 80) return; // ~8초 후 포기
+                dbg('no canvas yet ' + tries);
+                if (tries > 80) { dbg('canvas not found'); return; }
                 setTimeout(function(){ bindCanvas(tries + 1); }, 100);
                 return;
             }
+            dbg('canvas found');
             canvasEl.style.cursor = 'grab';
-
-            // capture 단계에서 잡아서 GlowScript 핸들러보다 먼저 실행
+            // capture 모드로 GlowScript 핸들러보다 먼저 잡기
             canvasEl.addEventListener('mousedown', onDown, true);
             canvasEl.addEventListener('wheel', onWheel, { passive: false, capture: true });
+            // 일부 환경에서 mousedown 대신 pointerdown만 발생할 수도
+            canvasEl.addEventListener('pointerdown', onDown, true);
+            dbg('listeners bound');
         }
-        // GlowScript canvas가 만들어지는 시점이 비동기일 수 있어 약간 지연 후 폴링
         setTimeout(function(){ bindCanvas(0); }, 50);
 
         document.addEventListener('mousemove', onMove, true);
         document.addEventListener('mouseup', onUp, true);
+        document.addEventListener('pointermove', onMove, true);
+        document.addEventListener('pointerup', onUp, true);
 
         if (autoRotateOn) {
             setInterval(function() {
@@ -120,7 +127,8 @@ try {
         }
     })();
 } catch (mainErr) {
-    console.error('camera-control error', mainErr);
+    var dEl = document.getElementById('__dbg__');
+    if (dEl) dEl.textContent = 'main err: ' + mainErr.message;
 }
 `
 
@@ -133,9 +141,27 @@ try {
   html, body { width: 100%; height: 100%; overflow: hidden; user-select: none; }
   .glowscript { width: 100% !important; padding: 0 !important; margin: 0 !important; }
   div > canvas { display: block; cursor: grab; }
+  #__dbg__ {
+    position: fixed;
+    top: 4px;
+    right: 4px;
+    font-size: 10px;
+    color: #fff;
+    background: rgba(0,0,0,0.55);
+    padding: 2px 6px;
+    border-radius: 3px;
+    z-index: 9999;
+    font-family: monospace;
+    pointer-events: none;
+    max-width: 60%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 </style>
 </head>
 <body>
+<div id="__dbg__">loading...</div>
 <div id="glowscript" class="glowscript">
 <link type="text/css" href="https://www.glowscript.org/css/redmond/2.1/jquery-ui.custom.css" rel="stylesheet" />
 <link type="text/css" href="https://www.glowscript.org/css/ide.css" rel="stylesheet" />
@@ -149,6 +175,7 @@ function __main__() {
     var scene = canvas();
     scene.width = window.innerWidth;
     scene.height = window.innerHeight;
+    document.getElementById('__dbg__').textContent = 'scene created';
     ${code}
     ${controlScript}
 }
