@@ -225,7 +225,7 @@ function GalleryCard({ a, mode }) {
             code={a.output_text}
             height="180px"
             showRotateToggle={false}
-            defaultRotate={true}
+            defaultRotate={false}
           />
         </div>
       )}

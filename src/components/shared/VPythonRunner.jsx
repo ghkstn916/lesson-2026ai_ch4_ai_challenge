@@ -20,7 +20,7 @@ export default function VPythonRunner({
   height = '300px',
   label,
   autoRun = true,
-  defaultRotate = true,
+  defaultRotate = false,
   showRotateToggle = true,
 }) {
   const blobRef = useRef(null)
@@ -155,7 +155,7 @@ export default function VPythonRunner({
       {src && showRotateToggle && (
         <div
           style={{
-            fontSize: '0.7rem',
+            fontSize: '0.72rem',
             color: 'var(--text-muted)',
             marginTop: 4,
             display: 'flex',
@@ -163,9 +163,8 @@ export default function VPythonRunner({
             flexWrap: 'wrap',
           }}
         >
-          <span>🖱 마우스 드래그 = 회전</span>
+          <span>🖱 클릭+드래그 = 회전</span>
           <span>휠 = 줌</span>
-          <span>Shift+드래그 = 이동</span>
         </div>
       )}
 
