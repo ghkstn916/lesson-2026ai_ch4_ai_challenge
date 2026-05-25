@@ -430,11 +430,12 @@ export default function WarmupMode() {
           {challenge.hasAttachment && (
             <div className="card" style={{ borderLeft: '4px solid var(--accent)' }}>
               <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>
-                📎 참고 자료 첨부 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 6 }}>(선택, 강력 권장)</span>
+                📎 진로·직업 자료 첨부 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 6 }}>(선택, 강력 권장)</span>
               </p>
               <p className="muted small" style={{ marginBottom: 12, fontSize: '0.85rem' }}>
-                본인의 활동·수상·독서·탐구 기록을 텍스트로 붙이거나 관련 URL을 입력하세요.
-                AI가 그 내용을 바탕으로 생활기록부용 글을 정리해줍니다. 자료가 없는 활동은 만들어내지 않습니다.
+                관심 있는 <strong>진로·직업에 대한 자료</strong>를 텍스트로 붙이거나 관련 URL을 입력하세요.
+                직업 소개 페이지(워크넷·커리어넷), 관련 뉴스 기사, 종사자 인터뷰 등이 좋아요.
+                AI가 자료의 사실에 근거해서 진로 중심 자기소개를 정리합니다.
               </p>
 
               <div className="field">
@@ -443,13 +444,14 @@ export default function WarmupMode() {
                   value={attachText}
                   onChange={(e) => setAttachText(e.target.value)}
                   rows={6}
-                  placeholder={`예) 동아리: 데이터분석 동아리(2년)
-- 1학년: 학교 매점 매출 분석 발표 (Python, Pandas)
-- 2학년: 학교 도서관 대출 데이터로 추천 시스템 만듦
-수상: 교내 IT경진대회 우수상 (2025)
-독서: '뉴스의 시대'(알랭 드 보통), '데이터로 본 사회'(...)
-탐구활동: 통계청 API로 우리 동네 인구 분포 시각화
-관심 진로: 데이터 사이언티스트 / 사회문제 해결`}
+                  placeholder={`예) 직업명: 데이터 사이언티스트
+주요 업무: 대규모 데이터에서 패턴을 찾아 의사결정을 돕는다.
+                 비즈니스 문제를 통계·머신러닝 모델로 옮긴다.
+필요 역량: 통계학, Python/SQL, 머신러닝 기본기, 도메인 지식, 시각화
+필요 학과: 통계학과·산업공학과·컴퓨터공학과 등
+입직 경로: 학사·석사 → 기업 데이터팀(IT/금융/의료/유통) 또는 데이터 컨설팅
+평균 연봉: 신입 5~7천만원, 경력 시니어 1억 이상 가능
+관련 기관/매체 출처: 워크넷 직업정보, 한국직업능력연구원 보고서 등`}
                   style={{
                     fontFamily: 'inherit',
                     lineHeight: 1.6,
