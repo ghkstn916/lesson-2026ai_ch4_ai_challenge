@@ -146,8 +146,6 @@ export default function VPythonRunner({
           <iframe
             key={src}
             src={src}
-            // allow-modals 미포함 → 학생/AI 코드의 alert/confirm/prompt 차단
-            sandbox="allow-scripts allow-same-origin"
             style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
             title="VPython Scene"
           />

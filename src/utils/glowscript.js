@@ -124,6 +124,12 @@ try {
 <script type="text/javascript" src="https://www.glowscript.org/lib/jquery/2.1/jquery-ui.custom.min.js"></script>
 <script type="text/javascript" src="https://www.glowscript.org/package/glow.3.2.min.js"></script>
 <script type="text/javascript" src="https://www.glowscript.org/package/RSrun.3.2.min.js"></script>
+<script type="text/javascript">
+// 학생/AI 코드가 부모 페이지(갤러리)에 모달을 띄우지 못하도록 무력화
+try { window.alert = function(){}; } catch (e) {}
+try { window.confirm = function(){ return false; }; } catch (e) {}
+try { window.prompt = function(){ return null; }; } catch (e) {}
+</script>
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 ;(function() {
 function __main__() {
