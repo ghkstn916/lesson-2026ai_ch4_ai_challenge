@@ -78,7 +78,7 @@ export default function PrivacyPage() {
           </Section>
 
           <Section title="5. 개인정보 보호책임자">
-            <p><strong>석리송</strong> (당곡고등학교 정보과 교사)</p>
+            <p><strong>최환수</strong> (혜화여자고등학교 정보과 교사)</p>
           </Section>
 
           <Section title="6. 열람 · 삭제 요청" last>
