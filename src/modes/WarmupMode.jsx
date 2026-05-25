@@ -19,10 +19,14 @@ export default function WarmupMode() {
   const { studentId } = useStudentStore()
   const [challenge, setChallenge] = useState(WARMUP_CHALLENGES[0])
   const [parts, setParts] = useState(challenge.defaults)
-  const [confirmed, setConfirmed] = useState({
-    ...emptyConfirm(),
-    role: !!challenge.defaults.role, // 기본 역할은 미리 확인 상태
+  // defaults에 미리 채워진 요소(역할·출력 등)는 자동 확인 상태로 시작
+  const initialConfirmed = (def) => ({
+    role: !!def.role,
+    context: !!def.context,
+    output: !!def.output,
+    condition: !!def.condition,
   })
+  const [confirmed, setConfirmed] = useState(initialConfirmed(challenge.defaults))
 
   const [output, setOutput] = useState('')
   const [reflection, setReflection] = useState('')
@@ -33,7 +37,7 @@ export default function WarmupMode() {
   // 변형 실험 (④, ⑤)
   const [experiments, setExperiments] = useState([])
   // experiments: [{ changedKey, oldValue, newValue, response, prompt }, ...]
-  const [expKey, setExpKey] = useState('context')          // 무엇을 바꿀지
+  const [expKey, setExpKey] = useState('condition')        // 무엇을 바꿀지 — 기본은 조건
   const [expValue, setExpValue] = useState('')             // 새 값
   const [expLoading, setExpLoading] = useState(false)
   const [expError, setExpError] = useState('')
@@ -41,11 +45,11 @@ export default function WarmupMode() {
   // 챌린지 바뀌면 빌더 + 실험 모두 초기화
   useEffect(() => {
     setParts(challenge.defaults)
-    setConfirmed({ ...emptyConfirm(), role: !!challenge.defaults.role })
+    setConfirmed(initialConfirmed(challenge.defaults))
     setOutput('')
     setError('')
     setExperiments([])
-    setExpKey('context')
+    setExpKey('condition')
     setExpValue('')
     setExpError('')
   }, [challenge.id])
@@ -367,11 +371,11 @@ export default function WarmupMode() {
               style={{ borderLeft: '4px solid var(--warning)' }}
             >
               <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>
-                ④ 변형 실험 — 한 요소만 바꿔서 다시 보내기
+                ④ 변형 실험 — 한 요소만 바꿔서 내 편지 만들기
               </p>
               <p className="muted small" style={{ marginBottom: 14, fontSize: '0.85rem' }}>
-                같은 미션에 한 가지 요소만 바꿔보면 결과가 어떻게 달라질까요?
-                기본은 <strong>맥락</strong> — 다른 요소도 골라 시도해보세요.
+                기본 편지는 받았으니 이제 본인 스타일로 바꿔봅시다. <strong>출력</strong>이나{' '}
+                <strong>조건</strong>에 원하는 양식·글귀·어조를 직접 적어가며 가장 마음에 드는 한 통을 완성하세요.
               </p>
 
               <div className="field" style={{ marginBottom: 12 }}>
@@ -417,11 +421,17 @@ export default function WarmupMode() {
               </div>
 
               <div className="row" style={{ gap: 6 }}>
-                <input
-                  type="text"
+                <textarea
                   value={expValue}
                   onChange={(e) => setExpValue(e.target.value)}
-                  placeholder={`새 [${VARIANT_LABELS.find((v) => v.key === expKey)?.label}] 값`}
+                  placeholder={
+                    expKey === 'output'
+                      ? '예) 손편지 한 통, SNS 메시지, 시 한 편, 5줄 엽서… — 본인이 원하는 양식을 자유롭게 적어보세요'
+                      : expKey === 'condition'
+                      ? '예) 마지막 줄에 별 한 줄 비유, 친구 이름을 한 번만, 옛 추억 한 토막 포함… — 직접 조건을 적어보세요'
+                      : `새 [${VARIANT_LABELS.find((v) => v.key === expKey)?.label}] 값을 자유롭게 입력`
+                  }
+                  rows={2}
                   style={{
                     flex: 1,
                     background: 'var(--surface)',
@@ -431,40 +441,50 @@ export default function WarmupMode() {
                     color: 'var(--text)',
                     fontSize: '0.9rem',
                     outline: 'none',
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') runExperiment()
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runExperiment()
                   }}
                 />
                 <button
                   className="btn btn-primary"
                   onClick={runExperiment}
                   disabled={expLoading || !expValue.trim()}
-                  style={{ padding: '8px 16px' }}
+                  style={{ padding: '8px 16px', alignSelf: 'stretch' }}
                 >
                   {expLoading ? '실험 중...' : '🔄 실험 보내기'}
                 </button>
               </div>
 
               {(challenge.suggestions[expKey] || []).length > 0 && (
-                <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {challenge.suggestions[expKey].map((s) => (
-                    <button
-                      key={s}
-                      className="btn btn-ghost"
-                      onClick={() => setExpValue(s)}
-                      style={{
-                        padding: '3px 8px',
-                        fontSize: '0.75rem',
-                        border: '1px solid var(--border)',
-                        background: 'transparent',
-                        color: 'var(--text-muted)',
-                      }}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <p
+                    className="muted small"
+                    style={{ marginTop: 10, fontSize: '0.78rem' }}
+                  >
+                    💡 직접 입력이 가장 좋지만, 막막하면 아래 예시를 참고하거나 클릭해 살짝 수정해보세요:
+                  </p>
+                  <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {challenge.suggestions[expKey].map((s) => (
+                      <button
+                        key={s}
+                        className="btn btn-ghost"
+                        onClick={() => setExpValue(s)}
+                        style={{
+                          padding: '3px 8px',
+                          fontSize: '0.75rem',
+                          border: '1px solid var(--border)',
+                          background: 'transparent',
+                          color: 'var(--text-muted)',
+                        }}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
 
               {expError && <p className="error" style={{ marginTop: 10 }}>{expError}</p>}
