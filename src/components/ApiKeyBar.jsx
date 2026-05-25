@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import useStudentStore from '../store/studentStore.js'
 
 /**
@@ -39,7 +40,7 @@ export default function ApiKeyBar({ needed = 'anthropic' }) {
         )}
       </div>
 
-      {open && (
+      {open && createPortal(
         <div className="modal-bg" onClick={() => setOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 12 }}>
@@ -88,7 +89,8 @@ export default function ApiKeyBar({ needed = 'anthropic' }) {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
