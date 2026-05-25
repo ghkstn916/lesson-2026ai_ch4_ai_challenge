@@ -56,7 +56,7 @@ export async function fetchGallery({ sessionNumber = null, mode = null, limit = 
   if (mode) q = q.eq('mode', mode)
   const { data, error } = await q
   if (error) throw error
-  return data
+  return data ?? []
 }
 
 // ── Storage (이미지 등 바이너리) ────────────────────────────────────────────

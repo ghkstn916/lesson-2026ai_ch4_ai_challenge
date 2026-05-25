@@ -18,8 +18,11 @@ export default function GalleryPage() {
     setError('')
     setOpenChallenges({})
     fetchGallery({ mode, limit: 300 })
-      .then(setItems)
-      .catch((e) => setError(e.message))
+      .then((d) => setItems(Array.isArray(d) ? d : []))
+      .catch((e) => {
+        console.error('[gallery] fetch failed:', e)
+        setError(e?.message || String(e) || '갤러리를 불러오지 못했습니다')
+      })
       .finally(() => setLoading(false))
   }, [mode])
 
@@ -40,8 +43,9 @@ export default function GalleryPage() {
       })
 
     const map = new Map()
-    for (const a of items) {
-      const cid = a.challenge_id || '(기타)'
+    for (const a of items || []) {
+      let cid = a.challenge_id
+      if (!cid || cid === 'null' || cid === 'undefined') cid = '(기타)'
       if (!map.has(cid)) map.set(cid, [])
       map.get(cid).push(a)
     }
