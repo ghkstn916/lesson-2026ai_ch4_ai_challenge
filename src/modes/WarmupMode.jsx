@@ -6,6 +6,7 @@ import {
   WARMUP_CHALLENGES,
   VARIANT_LABELS,
   composeWarmupPrompt,
+  WARMUP_SYSTEM_PROMPT,
 } from '../data/challenges-warmup.js'
 import { callClaude } from '../lib/claude.js'
 import { insertAttempt, fetchMyAttempts } from '../lib/supabase.js'
@@ -90,6 +91,7 @@ export default function WarmupMode() {
       const { text } = await callClaude({
         model: 'claude-haiku-4-5-20251001',
         maxTokens: 600,
+        system: WARMUP_SYSTEM_PROMPT,
         messages: [{ role: 'user', content: composedPrompt }],
       })
       setOutput(text)
@@ -139,6 +141,7 @@ export default function WarmupMode() {
       const { text } = await callClaude({
         model: 'claude-haiku-4-5-20251001',
         maxTokens: 600,
+        system: WARMUP_SYSTEM_PROMPT,
         messages: [{ role: 'user', content: newPrompt }],
       })
       const exp = {
