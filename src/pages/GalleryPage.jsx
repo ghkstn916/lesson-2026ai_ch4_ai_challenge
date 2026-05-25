@@ -1,10 +1,41 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Component, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchGallery } from '../lib/supabase.js'
 import { MODES, MODE_BY_KEY } from '../data/modes.js'
 import { CHALLENGE_INDEX, challengeIdsForMode, challengeMeta } from '../data/challenges-index.js'
 import VPythonRunner from '../components/shared/VPythonRunner.jsx'
 import { VARIANT_LABELS } from '../data/challenges-warmup.js'
+
+// 한 카드가 throw해도 갤러리 페이지 전체가 흰 화면이 되지 않도록 격리
+class CardErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { err: null }
+  }
+  static getDerivedStateFromError(err) {
+    return { err }
+  }
+  componentDidCatch(err, info) {
+    console.error('[gallery] card render error:', err, info)
+  }
+  render() {
+    if (this.state.err) {
+      return (
+        <div className="card-sm" style={{ borderColor: 'var(--danger)' }}>
+          <p className="muted small" style={{ color: 'var(--danger)' }}>
+            ⚠ 이 작품을 표시할 수 없어요
+          </p>
+          <p className="muted small" style={{ fontSize: '0.72rem', marginTop: 4 }}>
+            {String(this.state.err?.message || this.state.err).slice(0, 120)}
+          </p>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+const safeStr = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v))
 
 export default function GalleryPage() {
   const [mode, setMode] = useState('warmup')
@@ -189,7 +220,9 @@ export default function GalleryPage() {
                       }}
                     >
                       {attempts.map((a) => (
-                        <GalleryCard key={a.id} a={a} mode={mode} />
+                        <CardErrorBoundary key={a.id}>
+                          <GalleryCard a={a} mode={mode} />
+                        </CardErrorBoundary>
                       ))}
                     </div>
                   </div>
@@ -205,6 +238,9 @@ export default function GalleryPage() {
 
 function GalleryCard({ a, mode }) {
   const variant = VARIANT_LABELS.find((v) => v.key === a.variant_label)
+  const prompt = safeStr(a.prompt)
+  const outputText = safeStr(a.output_text)
+  const reflection = safeStr(a.reflection)
   return (
     <div className="card-sm">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -218,7 +254,8 @@ function GalleryCard({ a, mode }) {
       {mode === 'warmup' && a.self_check && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 6 }}>
           {VARIANT_LABELS.map((v) => {
-            const val = a.self_check?.[v.key]
+            const raw = a.self_check?.[v.key]
+            const val = safeStr(raw)
             if (!val) return null
             return (
               <span key={v.key} className={`tag ${v.key}`} style={{ fontSize: '0.68rem' }}>
@@ -235,10 +272,10 @@ function GalleryCard({ a, mode }) {
         </div>
       )}
 
-      {mode === 'visual' && a.output_text && (
+      {mode === 'visual' && outputText && (
         <div style={{ marginTop: 10 }}>
           <VPythonRunner
-            code={a.output_text}
+            code={outputText}
             height="180px"
             showRotateToggle={false}
             defaultRotate={false}
@@ -254,22 +291,22 @@ function GalleryCard({ a, mode }) {
         />
       )}
 
-      {a.prompt && (
+      {prompt && (
         <div className="muted small" style={{ marginTop: 8 }}>
-          <strong>P:</strong> {a.prompt.slice(0, 140)}{a.prompt.length > 140 && '...'}
+          <strong>P:</strong> {prompt.slice(0, 140)}{prompt.length > 140 && '...'}
         </div>
       )}
-      {a.output_text && mode !== 'visual' && (
+      {outputText && mode !== 'visual' && (
         <div style={{ marginTop: 6, fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
-          {a.output_text.slice(0, 240)}{a.output_text.length > 240 && '...'}
+          {outputText.slice(0, 240)}{outputText.length > 240 && '...'}
         </div>
       )}
-      {a.reflection && (
+      {reflection && (
         <div style={{ marginTop: 6, fontSize: '0.8rem', color: 'var(--warning)' }}>
-          💭 {a.reflection}
+          💭 {reflection}
         </div>
       )}
-      {a.self_check?.score != null && (
+      {typeof a.self_check?.score === 'number' && (
         <div className="muted small" style={{ marginTop: 6 }}>
           자기 점검: <strong style={{ color: 'var(--accent-hover)' }}>{a.self_check.score}점</strong>
         </div>
