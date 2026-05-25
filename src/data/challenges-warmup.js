@@ -11,8 +11,14 @@ export const WARMUP_CHALLENGES = [
     title: '고3 친구에게 보낼 한 줄 응원',
     description:
       '같은 미션에 4요소(역할·맥락·출력·조건) 중 하나만 바꿔보며 결과가 어떻게 달라지는지 관찰해보세요.',
+    defaults: {
+      role: '나에게 편지쓰는 고3 친한 친구',
+      context: '',
+      output: '',
+      condition: '',
+    },
     suggestions: {
-      role: ['따뜻한 작가', '엄격한 선생님', '친한 친구', '졸업한 선배'],
+      role: ['나에게 편지쓰는 고3 친한 친구', '따뜻한 작가', '엄격한 선생님', '졸업한 선배'],
       context: ['수능 D-30', '슬럼프', '모의고사 직후', '졸업식 전날'],
       output: [
         '한 줄 응원 문장',
@@ -28,7 +34,7 @@ export const WARMUP_CHALLENGES = [
       ],
     },
     minVariants: 2,
-    successHint: '같은 미션을 4요소 중 어느 것을 바꿨는지 라벨하면서 2개 이상 등록하면 통과!',
+    successHint: '4요소(역할·맥락·출력·조건)를 각각 입력하고 확인 → 완성 프롬프트로 AI에게 보내세요. 2개 이상 등록하면 통과!',
   },
   {
     id: 'warmup-intro',
@@ -37,6 +43,12 @@ export const WARMUP_CHALLENGES = [
     title: '진로 키워드로 만드는 자기소개 한 단락',
     description:
       '본인이 관심 있는 분야 키워드 1~2개로 프롬프트를 만들고, 4요소를 자유롭게 변형하며 자기소개를 다듬어보세요.',
+    defaults: {
+      role: '진로 상담사',
+      context: '',
+      output: '',
+      condition: '',
+    },
     suggestions: {
       role: ['진로 상담사', '면접관', '나의 미래 5년 후', '학생기자'],
       context: ['대학 자기소개서 첫 줄', 'SNS 프로필 한 단락', '학교 자치회 인사말'],
@@ -47,6 +59,22 @@ export const WARMUP_CHALLENGES = [
     successHint: '진로 키워드를 어떻게 다듬어 갔는지 관찰 메모를 남겨주세요.',
   },
 ]
+
+/**
+ * 4요소 → 완성 프롬프트 합성.
+ * 학생 화면과 AI에게 보내는 본문이 동일하게 라벨링되어 있어
+ * "어떤 요소가 어디로 들어가는지" 학습 효과를 살림.
+ */
+export function composeWarmupPrompt(parts, challenge) {
+  return [
+    `[역할] ${parts.role || ''}`,
+    `[맥락] ${parts.context || ''}`,
+    `[출력] ${parts.output || ''}`,
+    `[조건] ${parts.condition || ''}`,
+    '',
+    `미션: ${challenge.title} — ${challenge.description}`,
+  ].join('\n')
+}
 
 export const VARIANT_LABELS = [
   { key: 'role', label: '역할', color: '#4338ca' },
