@@ -19,7 +19,6 @@ export default function WarmupMode() {
   const { studentId } = useStudentStore()
   const [challenge, setChallenge] = useState(WARMUP_CHALLENGES[0])
   const [parts, setParts] = useState(challenge.defaults)
-  // defaults에 미리 채워진 요소(역할·출력 등)는 자동 확인 상태로 시작
   const initialConfirmed = (def) => ({
     role: !!def.role,
     context: !!def.context,
@@ -28,31 +27,50 @@ export default function WarmupMode() {
   })
   const [confirmed, setConfirmed] = useState(initialConfirmed(challenge.defaults))
 
+  // ③ baseline
   const [output, setOutput] = useState('')
-  const [reflection, setReflection] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [history, setHistory] = useState([])
 
-  // 변형 실험 (④, ⑤) — 학생이 편지에 직접 넣고 싶은 말을 자유롭게 적는 형태
-  const [experiments, setExperiments] = useState([])
-  // experiments: [{ id, userRequest, response, prompt, registered, rowId }, ...]
-  const [expRequest, setExpRequest] = useState('')
-  const [expLoading, setExpLoading] = useState(false)
-  const [expError, setExpError] = useState('')
+  // ④ 변형 실험 (한 요소만 바꿔서 다시)
+  const [variantKey, setVariantKey] = useState('context')
+  const [variantValue, setVariantValue] = useState('')
+  const [variantExps, setVariantExps] = useState([])
+  // {id, changedKey, oldValue, newValue, response, prompt, registered, rowId}
+  const [variantLoading, setVariantLoading] = useState(false)
+  const [variantError, setVariantError] = useState('')
 
-  // 챌린지 바뀌면 빌더 + 실험 모두 초기화
+  // ⑤ 관찰 메모
+  const [observation, setObservation] = useState('')
+  const [obsSaving, setObsSaving] = useState(false)
+  const [obsSavedAt, setObsSavedAt] = useState(null)
+  const [obsError, setObsError] = useState('')
+
+  // ⑥ 내가 하고 싶은 말 더하기 (1번 미션만)
+  const [addRequest, setAddRequest] = useState('')
+  const [addExps, setAddExps] = useState([])
+  const [addLoading, setAddLoading] = useState(false)
+  const [addError, setAddError] = useState('')
+
+  // 챌린지 바뀌면 모두 초기화
   useEffect(() => {
     setParts(challenge.defaults)
     setConfirmed(initialConfirmed(challenge.defaults))
     setOutput('')
     setError('')
-    setExperiments([])
-    setExpRequest('')
-    setExpError('')
+    setVariantKey('context')
+    setVariantValue('')
+    setVariantExps([])
+    setVariantError('')
+    setObservation('')
+    setObsSavedAt(null)
+    setObsError('')
+    setAddRequest('')
+    setAddExps([])
+    setAddError('')
   }, [challenge.id])
 
-  // 내 시도 기록
   useEffect(() => {
     if (!studentId) return
     fetchMyAttempts({ studentId, mode: 'warmup' })
@@ -61,7 +79,6 @@ export default function WarmupMode() {
   }, [studentId])
 
   const myForChallenge = history.filter((h) => h.challenge_id === challenge.id)
-
   const allConfirmed = VARIANT_LABELS.every(
     (v) => confirmed[v.key] && (parts[v.key] || '').trim()
   )
@@ -69,7 +86,6 @@ export default function WarmupMode() {
 
   const handleChange = (key, value) => {
     setParts({ ...parts, [key]: value })
-    // 내용을 바꾸면 확인 상태 풀림 (다시 확인 필요)
     if (confirmed[key]) setConfirmed({ ...confirmed, [key]: false })
   }
   const handleConfirm = (key) => {
@@ -81,10 +97,11 @@ export default function WarmupMode() {
     setConfirmed({ ...confirmed, [key]: false })
   }
 
+  // ② → ③: baseline 호출
   const handleRun = async () => {
     setError('')
     if (!allConfirmed) {
-      setError('4요소를 모두 입력하고 각 "확인" 버튼을 눌러주세요.')
+      setError('4요소를 모두 입력하고 각 [확인] 버튼을 눌러주세요.')
       return
     }
     setLoading(true)
@@ -103,7 +120,8 @@ export default function WarmupMode() {
     setLoading(false)
   }
 
-  const handleRegister = async () => {
+  // ③ baseline 등록
+  const handleRegisterBaseline = async () => {
     if (!output) return
     try {
       const row = await insertAttempt({
@@ -114,26 +132,115 @@ export default function WarmupMode() {
         prompt: composedPrompt,
         output_text: output,
         self_check: { ...parts, isBaseline: true },
-        reflection: reflection || null,
       })
       setHistory([row, ...history])
-      setReflection('')
     } catch (e) {
       setError(e.message || '등록 실패')
     }
   }
 
-  // ── 변형 실험: 내가 편지에 넣고 싶은 말을 자유롭게 ────────────────────────
-  const runExperiment = async () => {
-    setExpError('')
-    const req = (expRequest || '').trim()
+  // ④ 변형 실험
+  const runVariant = async () => {
+    setVariantError('')
+    const trimmed = (variantValue || '').trim()
+    if (!trimmed) {
+      setVariantError(`새 [${VARIANT_LABELS.find((v) => v.key === variantKey)?.label}] 값을 입력하세요.`)
+      return
+    }
+    if (trimmed === (parts[variantKey] || '')) {
+      setVariantError('이전과 같은 값이에요. 다른 값을 시도해보세요.')
+      return
+    }
+    const newParts = { ...parts, [variantKey]: trimmed }
+    const newPrompt = composeWarmupPrompt(newParts, challenge)
+    setVariantLoading(true)
+    try {
+      const { text } = await callClaude({
+        model: 'claude-haiku-4-5-20251001',
+        maxTokens: 600,
+        system: WARMUP_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: newPrompt }],
+      })
+      const exp = {
+        id: Date.now(),
+        changedKey: variantKey,
+        oldValue: parts[variantKey],
+        newValue: trimmed,
+        response: text,
+        prompt: newPrompt,
+        registered: false,
+        rowId: null,
+      }
+      setVariantExps([exp, ...variantExps])
+      setVariantValue('')
+    } catch (e) {
+      setVariantError(e.message || '실험 실패')
+    }
+    setVariantLoading(false)
+  }
+
+  const registerVariant = async (exp) => {
+    if (exp.registered) return
+    try {
+      const newParts = { ...parts, [exp.changedKey]: exp.newValue }
+      const row = await insertAttempt({
+        student_id: studentId,
+        session_number: 1,
+        mode: 'warmup',
+        challenge_id: challenge.id,
+        prompt: exp.prompt,
+        output_text: exp.response,
+        variant_label: exp.changedKey,
+        self_check: {
+          ...newParts,
+          isBaseline: false,
+          experiment: { changed: exp.changedKey, from: exp.oldValue, to: exp.newValue },
+        },
+      })
+      setVariantExps(variantExps.map((e) => (e.id === exp.id ? { ...e, registered: true, rowId: row.id } : e)))
+      setHistory([row, ...history])
+    } catch (e) {
+      setVariantError(e.message || '등록 실패')
+    }
+  }
+
+  // ⑤ 관찰 메모 저장
+  const saveObservation = async () => {
+    setObsError('')
+    if (!observation.trim()) {
+      setObsError('메모 내용을 적어주세요.')
+      return
+    }
+    setObsSaving(true)
+    try {
+      const row = await insertAttempt({
+        student_id: studentId,
+        session_number: 1,
+        mode: 'warmup',
+        challenge_id: challenge.id,
+        prompt: '[관찰 메모]',
+        output_text: '',
+        self_check: { type: 'observation' },
+        reflection: observation.trim(),
+      })
+      setHistory([row, ...history])
+      setObsSavedAt(new Date())
+    } catch (e) {
+      setObsError(e.message || '저장 실패')
+    }
+    setObsSaving(false)
+  }
+
+  // ⑥ 내가 하고 싶은 말 더하기 (1번 미션만)
+  const runAdd = async () => {
+    setAddError('')
+    const req = (addRequest || '').trim()
     if (!req) {
-      setExpError('편지에 넣고 싶은 말이나 더하고 싶은 표현을 적어주세요.')
+      setAddError('편지에 넣고 싶은 말이나 더하고 싶은 표현을 적어주세요.')
       return
     }
     const newPrompt = `${composedPrompt}\n\n[내가 꼭 넣고 싶은 말]\n${req}`
-
-    setExpLoading(true)
+    setAddLoading(true)
     try {
       const { text } = await callClaude({
         model: 'claude-haiku-4-5-20251001',
@@ -149,15 +256,15 @@ export default function WarmupMode() {
         registered: false,
         rowId: null,
       }
-      setExperiments([exp, ...experiments])
-      setExpRequest('')
+      setAddExps([exp, ...addExps])
+      setAddRequest('')
     } catch (e) {
-      setExpError(e.message || '실험 실패')
+      setAddError(e.message || '실패')
     }
-    setExpLoading(false)
+    setAddLoading(false)
   }
 
-  const registerExperiment = async (exp) => {
+  const registerAdd = async (exp) => {
     if (exp.registered) return
     try {
       const row = await insertAttempt({
@@ -167,17 +274,13 @@ export default function WarmupMode() {
         challenge_id: challenge.id,
         prompt: exp.prompt,
         output_text: exp.response,
-        self_check: {
-          ...parts,
-          isBaseline: false,
-          userRequest: exp.userRequest,
-        },
+        self_check: { ...parts, isBaseline: false, userRequest: exp.userRequest },
         reflection: exp.userRequest,
       })
-      setExperiments(experiments.map((e) => (e.id === exp.id ? { ...e, registered: true, rowId: row.id } : e)))
+      setAddExps(addExps.map((e) => (e.id === exp.id ? { ...e, registered: true, rowId: row.id } : e)))
       setHistory([row, ...history])
     } catch (e) {
-      setExpError(e.message || '등록 실패')
+      setAddError(e.message || '등록 실패')
     }
   }
 
@@ -226,13 +329,13 @@ export default function WarmupMode() {
           {myForChallenge.length > 0 && (
             <div className="card-sm">
               <p className="muted small">
-                이 챌린지 등록 — {myForChallenge.length} / 최소 {challenge.minVariants}개
+                이 챌린지 등록 — {myForChallenge.length}회
               </p>
             </div>
           )}
         </div>
 
-        {/* ── 우측: 위→아래 과제 흐름 (① 입력 → ② 완성 프롬프트 → ③ AI 응답) ─ */}
+        {/* ── 우측: 위→아래 활동 흐름 ─────────────────────────────────────── */}
         <div className="col" style={{ flex: '1 1 0', minWidth: 0, gap: 20 }}>
           {/* ① 4요소 입력 */}
           <div className="card">
@@ -259,7 +362,6 @@ export default function WarmupMode() {
                   value={parts[v.key]}
                   confirmed={confirmed[v.key]}
                   suggestions={challenge.suggestions[v.key] || []}
-                  placeholder={challenge.placeholders?.[v.key]}
                   onChange={(val) => handleChange(v.key, val)}
                   onConfirm={() => handleConfirm(v.key)}
                   onClickSuggestion={(val) => handleClickSuggestion(v.key, val)}
@@ -268,23 +370,17 @@ export default function WarmupMode() {
             </div>
           </div>
 
-          {/* ② 완성 프롬프트 + AI에게 보내기 */}
+          {/* ② 완성 프롬프트 + 보내기 */}
           <div
             className="card"
-            style={{
-              borderLeft: '4px solid ' + (allConfirmed ? 'var(--success)' : 'var(--warning)'),
-            }}
+            style={{ borderLeft: '4px solid ' + (allConfirmed ? 'var(--success)' : 'var(--warning)') }}
           >
             <div className="row" style={{ alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
               <p style={{ fontWeight: 700, fontSize: '1rem' }}>② 완성 프롬프트</p>
-              <span
-                className="small muted"
-                style={{ fontSize: '0.8rem' }}
-              >
+              <span className="small muted" style={{ fontSize: '0.8rem' }}>
                 4요소가 합쳐져 AI에게 보낼 한 덩어리
               </span>
             </div>
-
             <pre
               style={{
                 background: 'var(--bg)',
@@ -299,7 +395,6 @@ export default function WarmupMode() {
             >
               {composedPrompt}
             </pre>
-
             <button
               className="btn btn-primary"
               onClick={handleRun}
@@ -316,17 +411,17 @@ export default function WarmupMode() {
             {error && <p className="error" style={{ marginTop: 10 }}>{error}</p>}
           </div>
 
-          {/* ③ AI 응답 + 관찰 메모 + 등록 */}
+          {/* ③ AI 응답 (메모 없음) */}
           {output && (
             <div className="card" style={{ borderLeft: '4px solid var(--accent)' }}>
               <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 10 }}>
-                ③ AI 응답
+                ③ AI 응답 (기본 결과)
               </p>
               <div
                 style={{
                   whiteSpace: 'pre-wrap',
                   fontSize: '1rem',
-                  lineHeight: 1.8,
+                  lineHeight: 1.85,
                   padding: '14px 16px',
                   background: 'var(--bg)',
                   borderRadius: 'var(--radius)',
@@ -334,41 +429,234 @@ export default function WarmupMode() {
               >
                 {output}
               </div>
-
-              <label className="field" style={{ marginTop: 16 }}>
-                <span>관찰 메모 (선택) — 이번에는 어떤 점이 잘 됐나요?</span>
-                <textarea
-                  value={reflection}
-                  onChange={(e) => setReflection(e.target.value)}
-                  rows={3}
-                  placeholder="예) 역할을 친구로 바꿨더니 말투가 자연스러워졌다"
-                />
-              </label>
-
               <button
                 className="btn btn-primary"
-                onClick={handleRegister}
-                style={{ width: '100%', marginTop: 10 }}
+                onClick={handleRegisterBaseline}
+                style={{ width: '100%', marginTop: 12 }}
               >
-                📌 갤러리에 등록
+                📌 기본 결과 갤러리에 등록
               </button>
             </div>
           )}
 
-          {/* ④ 내가 하고 싶은 말 더하기 — ③ 응답이 나온 후에만 표시 */}
+          {/* ④ 변형 실험 */}
           {output && (
             <div className="card" style={{ borderLeft: '4px solid var(--warning)' }}>
               <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>
-                ④ 내가 하고 싶은 말 더하기
+                ④ 한 요소만 바꿔서 변형 실험
               </p>
-              <p className="muted small" style={{ marginBottom: 14, fontSize: '0.88rem', lineHeight: 1.7 }}>
-                기본 편지를 받았다면, 이번엔 <strong>내가 미래의 나(친구)에게 진짜로 전하고 싶은 한마디</strong>를 직접 적어보세요.
-                추억, 다짐, 작은 표현 무엇이든 좋아요. AI가 그 마음을 편지 안에 자연스럽게 녹여서 다시 써줍니다.
+              <p className="muted small" style={{ marginBottom: 14, fontSize: '0.85rem' }}>
+                4요소 중 한 가지만 바꿔보면 결과가 어떻게 달라질까요? 기본은 <strong>맥락</strong> —
+                다른 요소도 골라 시도해보세요.
               </p>
 
+              <div className="field" style={{ marginBottom: 12 }}>
+                <span>어떤 요소를 바꿀까?</span>
+                <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+                  {VARIANT_LABELS.map((v) => (
+                    <button
+                      key={v.key}
+                      className="btn"
+                      onClick={() => {
+                        setVariantKey(v.key)
+                        setVariantValue('')
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '0.85rem',
+                        background: variantKey === v.key ? v.color : 'var(--surface2)',
+                        borderColor: variantKey === v.key ? v.color : 'var(--border)',
+                        color: variantKey === v.key ? 'white' : 'var(--text)',
+                      }}
+                    >
+                      {variantKey === v.key ? '● ' : '○ '}{v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: 10,
+                  background: 'var(--bg)',
+                  borderRadius: 'var(--radius)',
+                  fontSize: '0.85rem',
+                  marginBottom: 10,
+                }}
+              >
+                <span className="muted">현재 </span>
+                <span className={`tag ${variantKey}`} style={{ marginRight: 4 }}>
+                  {VARIANT_LABELS.find((v) => v.key === variantKey)?.label}
+                </span>
+                <strong>{parts[variantKey] || '(비어있음)'}</strong>
+                <span className="muted"> → 새로 바꿀 값:</span>
+              </div>
+
+              <div className="row" style={{ gap: 6 }}>
+                <textarea
+                  value={variantValue}
+                  onChange={(e) => setVariantValue(e.target.value)}
+                  placeholder={`새 [${VARIANT_LABELS.find((v) => v.key === variantKey)?.label}] 값을 입력`}
+                  rows={2}
+                  style={{
+                    flex: 1,
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)',
+                    padding: '8px 10px',
+                    color: 'var(--text)',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
+                  }}
+                  onKeyDown={(e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runVariant()
+                  }}
+                />
+                <button
+                  className="btn btn-primary"
+                  onClick={runVariant}
+                  disabled={variantLoading || !variantValue.trim()}
+                  style={{ padding: '8px 16px', alignSelf: 'stretch' }}
+                >
+                  {variantLoading ? '실험 중...' : '🔄 실험 보내기'}
+                </button>
+              </div>
+
+              {(challenge.suggestions[variantKey] || []).length > 0 && (
+                <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {challenge.suggestions[variantKey].map((s) => (
+                    <button
+                      key={s}
+                      className="btn btn-ghost"
+                      onClick={() => setVariantValue(s)}
+                      style={{
+                        padding: '3px 8px',
+                        fontSize: '0.75rem',
+                        border: '1px solid var(--border)',
+                        background: 'transparent',
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {variantError && <p className="error" style={{ marginTop: 10 }}>{variantError}</p>}
+
+              {/* 변형 결과 누적 */}
+              {variantExps.map((exp, idx) => {
+                const m = VARIANT_LABELS.find((v) => v.key === exp.changedKey)
+                return (
+                  <div
+                    key={exp.id}
+                    style={{
+                      marginTop: 14,
+                      padding: 12,
+                      background: 'var(--bg)',
+                      borderRadius: 'var(--radius)',
+                      borderLeft: `3px solid ${m?.color || 'var(--accent)'}`,
+                    }}
+                  >
+                    <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                        🔬 변형 #{variantExps.length - idx}
+                      </span>
+                      <span className="muted small">{m?.label} 변경</span>
+                    </div>
+                    <div className="small" style={{ marginTop: 6 }}>
+                      <span className={`tag ${exp.changedKey}`}>{m?.label}</span>
+                      <span style={{ color: 'var(--text-muted)' }}> {exp.oldValue || '(빈값)'}</span>
+                      <span style={{ margin: '0 8px' }}>→</span>
+                      <strong>{exp.newValue}</strong>
+                    </div>
+                    <div
+                      style={{
+                        whiteSpace: 'pre-wrap',
+                        fontSize: '0.95rem',
+                        lineHeight: 1.85,
+                        marginTop: 8,
+                        padding: '10px 12px',
+                        background: 'var(--surface2)',
+                        borderRadius: 4,
+                      }}
+                    >
+                      {exp.response}
+                    </div>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => registerVariant(exp)}
+                      disabled={exp.registered}
+                      style={{ width: '100%', marginTop: 10 }}
+                    >
+                      {exp.registered ? '✓ 등록됨' : '📌 이 변형 갤러리에 등록'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* ⑤ 관찰 메모 */}
+          {output && (
+            <div className="card" style={{ borderLeft: '4px solid #9333ea' }}>
+              <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>
+                ⑤ 관찰 메모 — 무엇이 달라졌나요?
+              </p>
+              <p className="muted small" style={{ marginBottom: 12, fontSize: '0.85rem' }}>
+                ③ 기본 결과와 ④ 변형 결과를 비교하며 어떤 요소가 결과에 어떤 차이를 만들었는지 짧게 메모해보세요.
+              </p>
               <textarea
-                value={expRequest}
-                onChange={(e) => setExpRequest(e.target.value)}
+                value={observation}
+                onChange={(e) => setObservation(e.target.value)}
+                rows={4}
+                placeholder="예) 맥락을 '졸업식 전날'로 바꿨더니 응원 톤이 그리움 섞인 회상으로 변했다. 같은 미션인데 단어 몇 개 바꾼 것만으로도 분위기가 확 달라진다."
+                style={{
+                  width: '100%',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  padding: '10px 12px',
+                  color: 'var(--text)',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                  resize: 'vertical',
+                  lineHeight: 1.6,
+                }}
+              />
+              <button
+                className="btn btn-primary"
+                onClick={saveObservation}
+                disabled={obsSaving || !observation.trim()}
+                style={{ width: '100%', marginTop: 10 }}
+              >
+                {obsSaving
+                  ? '저장 중...'
+                  : obsSavedAt
+                  ? `💾 메모 다시 저장 (마지막: ${obsSavedAt.toLocaleTimeString()})`
+                  : '💾 관찰 메모 저장'}
+              </button>
+              {obsError && <p className="error" style={{ marginTop: 8 }}>{obsError}</p>}
+            </div>
+          )}
+
+          {/* ⑥ 내가 하고 싶은 말 더하기 — 1번 미션 전용 */}
+          {output && challenge.hasAddRequest && (
+            <div className="card" style={{ borderLeft: '4px solid #be123c' }}>
+              <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>
+                ⑥ 내가 하고 싶은 말 더하기
+              </p>
+              <p className="muted small" style={{ marginBottom: 14, fontSize: '0.88rem', lineHeight: 1.7 }}>
+                마지막 단계 — 내가 미래의 나(친구)에게 진짜로 전하고 싶은 한마디를 직접 적어보세요.
+                추억, 다짐, 작은 표현 무엇이든. AI가 그 마음을 편지 안에 자연스럽게 녹여서 다시 써줍니다.
+              </p>
+              <textarea
+                value={addRequest}
+                onChange={(e) => setAddRequest(e.target.value)}
                 placeholder={`예) "5월에 같이 갔던 한강 야자, 그때 네가 한 말을 꼭 떠올렸으면 좋겠어"
 예) "흔들릴 때 너는 혼자가 아니라는 한 줄을 꼭 넣어줘"
 예) "마지막에 우리 셋이 다시 모일 봄을 기약하는 문장으로 끝맺어줘"`}
@@ -387,87 +675,81 @@ export default function WarmupMode() {
                   lineHeight: 1.6,
                 }}
                 onKeyDown={(e) => {
-                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runExperiment()
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runAdd()
                 }}
               />
-
               <button
                 className="btn btn-primary"
-                onClick={runExperiment}
-                disabled={expLoading || !expRequest.trim()}
+                onClick={runAdd}
+                disabled={addLoading || !addRequest.trim()}
                 style={{ width: '100%', marginTop: 12, padding: '12px', fontSize: '0.98rem' }}
               >
-                {expLoading ? '편지 다시 쓰는 중...' : '✉️ 내 말 더해서 편지 다시 받기 (Ctrl+Enter)'}
+                {addLoading ? '편지 다시 쓰는 중...' : '✉️ 내 말 더해서 편지 다시 받기'}
               </button>
+              {addError && <p className="error" style={{ marginTop: 10 }}>{addError}</p>}
 
-              {expError && <p className="error" style={{ marginTop: 10 }}>{expError}</p>}
-
-              <p className="muted small" style={{ marginTop: 10, fontSize: '0.78rem' }}>
-                💡 여러 번 시도할 수 있어요. 마음에 드는 편지가 나올 때까지 다른 말을 적어 다시 받아보세요.
-              </p>
+              {/* 결과 누적 */}
+              {addExps.map((exp, idx) => (
+                <div
+                  key={exp.id}
+                  style={{
+                    marginTop: 14,
+                    padding: 12,
+                    background: 'var(--bg)',
+                    borderRadius: 'var(--radius)',
+                    borderLeft: '3px solid var(--accent)',
+                  }}
+                >
+                  <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                      💌 편지 #{addExps.length - idx}
+                    </span>
+                    <span className="muted small">내가 더한 말 반영</span>
+                  </div>
+                  <div
+                    style={{
+                      padding: '8px 10px',
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      borderLeft: '2px solid var(--warning)',
+                      borderRadius: 4,
+                      fontSize: '0.85rem',
+                      marginTop: 8,
+                      marginBottom: 10,
+                      whiteSpace: 'pre-wrap',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    <strong style={{ color: 'var(--warning)' }}>💬 내가 더한 말:</strong>{' '}
+                    {exp.userRequest}
+                  </div>
+                  <div
+                    style={{
+                      whiteSpace: 'pre-wrap',
+                      fontSize: '1rem',
+                      lineHeight: 1.85,
+                      padding: '12px 14px',
+                      background: 'var(--surface2)',
+                      borderRadius: 4,
+                    }}
+                  >
+                    {exp.response}
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => registerAdd(exp)}
+                    disabled={exp.registered}
+                    style={{ width: '100%', marginTop: 10 }}
+                  >
+                    {exp.registered ? '✓ 등록됨 — D-30에 전달됩니다' : '📌 이 편지 갤러리에 등록'}
+                  </button>
+                </div>
+              ))}
             </div>
           )}
-
-          {/* ⑤ 응답 누적 — 새 편지가 위로 쌓임 */}
-          {experiments.map((exp, idx) => (
-            <div
-              key={exp.id}
-              className="card"
-              style={{ borderLeft: '4px solid var(--accent)' }}
-            >
-              <div className="row" style={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <p style={{ fontWeight: 700, fontSize: '1rem' }}>
-                  💌 편지 #{experiments.length - idx}
-                </p>
-                <span className="muted small">
-                  내가 더한 말 반영
-                </span>
-              </div>
-
-              <div
-                style={{
-                  padding: '10px 12px',
-                  background: 'rgba(245, 158, 11, 0.08)',
-                  borderLeft: '2px solid var(--warning)',
-                  borderRadius: 4,
-                  fontSize: '0.85rem',
-                  marginTop: 10,
-                  marginBottom: 12,
-                  whiteSpace: 'pre-wrap',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                <strong style={{ color: 'var(--warning)' }}>💬 내가 더한 말:</strong>{' '}
-                {exp.userRequest}
-              </div>
-
-              <div
-                style={{
-                  whiteSpace: 'pre-wrap',
-                  fontSize: '1rem',
-                  lineHeight: 1.85,
-                  padding: '14px 16px',
-                  background: 'var(--bg)',
-                  borderRadius: 'var(--radius)',
-                }}
-              >
-                {exp.response}
-              </div>
-
-              <button
-                className="btn btn-primary"
-                onClick={() => registerExperiment(exp)}
-                disabled={exp.registered}
-                style={{ width: '100%', marginTop: 10 }}
-              >
-                {exp.registered ? '✓ 등록됨 — D-30에 전달됩니다' : '📌 이 편지 갤러리에 등록'}
-              </button>
-            </div>
-          ))}
         </div>
       </div>
 
-      {/* ── 내 시도 기록 ──────────────────────────────────────────────── */}
+      {/* 내 시도 기록 (페이지 하단) */}
       {myForChallenge.length > 0 && (
         <div className="card" style={{ marginTop: 16 }}>
           <p className="muted small" style={{ marginBottom: 8 }}>
@@ -476,24 +758,30 @@ export default function WarmupMode() {
           {myForChallenge.slice(0, 5).map((a) => (
             <div className="attempt" key={a.id}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
-                {VARIANT_LABELS.map((v) => {
-                  const val = a.self_check?.[v.key] || ''
-                  if (!val) return null
-                  return (
-                    <span key={v.key} className={`tag ${v.key}`} style={{ fontSize: '0.7rem' }}>
-                      {v.label}: {val.length > 18 ? val.slice(0, 18) + '…' : val}
-                    </span>
-                  )
-                })}
+                {a.self_check?.type === 'observation' ? (
+                  <span className="tag" style={{ background: '#9333ea', color: 'white', fontSize: '0.7rem' }}>
+                    관찰 메모
+                  </span>
+                ) : (
+                  VARIANT_LABELS.map((v) => {
+                    const val = a.self_check?.[v.key]
+                    if (!val) return null
+                    return (
+                      <span key={v.key} className={`tag ${v.key}`} style={{ fontSize: '0.7rem' }}>
+                        {v.label}: {val.length > 18 ? val.slice(0, 18) + '…' : val}
+                      </span>
+                    )
+                  })
+                )}
                 <span className="muted small" style={{ marginLeft: 'auto' }}>
                   {new Date(a.created_at).toLocaleTimeString()}
                 </span>
               </div>
-              <div style={{ fontSize: '0.88rem', whiteSpace: 'pre-wrap' }}>
-                {a.output_text}
-              </div>
+              {a.output_text && (
+                <div style={{ fontSize: '0.88rem', whiteSpace: 'pre-wrap' }}>{a.output_text}</div>
+              )}
               {a.reflection && (
-                <div style={{ fontSize: '0.8rem', marginTop: 4, color: 'var(--warning)' }}>
+                <div style={{ fontSize: '0.85rem', marginTop: 4, color: 'var(--warning)', whiteSpace: 'pre-wrap' }}>
                   💭 {a.reflection}
                 </div>
               )}
@@ -506,7 +794,7 @@ export default function WarmupMode() {
 }
 
 // ── 4요소 1개 입력 컴포넌트 ────────────────────────────────────────────────
-function PartInput({ meta, value, confirmed, suggestions, placeholder, onChange, onConfirm, onClickSuggestion }) {
+function PartInput({ meta, value, confirmed, suggestions, onChange, onConfirm, onClickSuggestion }) {
   const trimmed = (value || '').trim()
   return (
     <div
@@ -535,7 +823,7 @@ function PartInput({ meta, value, confirmed, suggestions, placeholder, onChange,
           type="text"
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder || `${meta.label}을(를) 적어보세요`}
+          placeholder={`${meta.label}을(를) 적어보세요`}
           style={{
             flex: 1,
             background: 'var(--surface)',
