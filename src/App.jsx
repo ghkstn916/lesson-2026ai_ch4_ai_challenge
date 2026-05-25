@@ -1,35 +1,43 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import TeacherApp from './components/teacher/TeacherApp.jsx'
-import TeamApp from './components/team/TeamApp.jsx'
-import JoinPage from './components/JoinPage.jsx'
-import SpectatorPage from './components/SpectatorPage.jsx'
+import JoinPage from './pages/JoinPage.jsx'
+import StudentHome from './pages/StudentHome.jsx'
+import GalleryPage from './pages/GalleryPage.jsx'
 import GuidePage from './components/GuidePage.jsx'
 import PrivacyPage from './components/PrivacyPage.jsx'
+import TeacherDashboard from './pages/TeacherDashboard.jsx'
+
+import WarmupMode from './modes/WarmupMode.jsx'
+import VisualMode from './modes/VisualMode.jsx'
+import ImageMode from './modes/ImageMode.jsx'
+import StructureMode from './modes/StructureMode.jsx'
+import LimitMode from './modes/LimitMode.jsx'
+import ToolMode from './modes/ToolMode.jsx'
+import ReactMode from './modes/ReactMode.jsx'
+import ProjectMode from './modes/ProjectMode.jsx'
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 교사 화면 */}
-        <Route path="/teacher/*" element={<TeacherApp />} />
-
-        {/* 팀 선택 화면 (학생 접속점) */}
+        <Route path="/" element={<Navigate to="/join" replace />} />
         <Route path="/join" element={<JoinPage />} />
 
-        {/* 팀 화면 */}
-        <Route path="/team/:teamId" element={<TeamApp />} />
+        <Route path="/student" element={<StudentHome />} />
+        <Route path="/student/warmup" element={<WarmupMode />} />
+        <Route path="/student/visual" element={<VisualMode />} />
+        <Route path="/student/image" element={<ImageMode />} />
+        <Route path="/student/structure" element={<StructureMode />} />
+        <Route path="/student/limit" element={<LimitMode />} />
+        <Route path="/student/tool" element={<ToolMode />} />
+        <Route path="/student/react" element={<ReactMode />} />
+        <Route path="/student/project" element={<ProjectMode />} />
 
-        {/* 교사 안내서 (로그인 없이 접근 가능) */}
+        <Route path="/gallery" element={<GalleryPage />} />
+        <Route path="/teacher" element={<TeacherDashboard />} />
         <Route path="/guide" element={<GuidePage />} />
-
-        {/* 개인정보 처리방침 */}
         <Route path="/privacy" element={<PrivacyPage />} />
 
-        {/* 관람 모드 */}
-        <Route path="/spectator/:sessionId" element={<SpectatorPage />} />
-
-        {/* 루트: 학생용 join 화면으로 */}
-        <Route path="/" element={<Navigate to="/join" replace />} />
+        <Route path="*" element={<Navigate to="/join" replace />} />
       </Routes>
     </BrowserRouter>
   )
