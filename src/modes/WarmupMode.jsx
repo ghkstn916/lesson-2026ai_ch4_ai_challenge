@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import StudentLayout from '../components/StudentLayout.jsx'
+import ModeIntro from '../components/ModeIntro.jsx'
 import useStudentStore from '../store/studentStore.js'
 import { WARMUP_CHALLENGES, VARIANT_LABELS } from '../data/challenges-warmup.js'
 import { callClaude } from '../lib/claude.js'
@@ -75,6 +76,7 @@ export default function WarmupMode() {
 
   return (
     <StudentLayout needKey="anthropic" title="1차시 워밍업">
+      <ModeIntro modeKey="warmup" />
       <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
         {/* ── 좌측: 미션 선택 + 챌린지 카드 ─────────────────────────────────── */}
         <div className="col" style={{ flex: '0 0 320px', gap: 16 }}>

@@ -28,7 +28,7 @@ export const MODES = [
     emoji: '🖼️',
     summary: '이미지 프롬프팅 5요소로 GPT Image 2 다루기',
     needsKey: 'openai',
-    status: 'scaffold',
+    status: 'ready',
   },
   {
     key: 'structure',
@@ -37,7 +37,7 @@ export const MODES = [
     emoji: '🧱',
     summary: '같은 정보를 JSON → SVG → HTML 표로 — 출력 형식을 제약으로',
     needsKey: 'anthropic',
-    status: 'scaffold',
+    status: 'ready',
   },
   {
     key: 'limit',
