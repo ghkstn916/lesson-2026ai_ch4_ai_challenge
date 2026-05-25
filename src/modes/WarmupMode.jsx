@@ -113,9 +113,9 @@ export default function WarmupMode() {
     <StudentLayout needKey="anthropic" title="1차시 워밍업">
       <ModeIntro modeKey="warmup" />
 
-      <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
+      <div className="row" style={{ gap: 20, alignItems: 'flex-start' }}>
         {/* ── 좌측: 미션 선택 + 챌린지 카드 ─────────────────────────────── */}
-        <div className="col" style={{ flex: '0 0 300px', gap: 16 }}>
+        <div className="col" style={{ flex: '0 0 260px', gap: 16 }}>
           <div className="card-sm">
             <p className="muted small" style={{ marginBottom: 6 }}>오늘의 미션</p>
             {WARMUP_CHALLENGES.map((c) => {
@@ -161,7 +161,7 @@ export default function WarmupMode() {
         </div>
 
         {/* ── 중앙: 4요소 빌더 ────────────────────────────────────────── */}
-        <div className="col" style={{ flex: 1, gap: 16 }}>
+        <div className="col" style={{ flex: '1 1 0', minWidth: 0, gap: 16 }}>
           <div className="card">
             <p className="muted small" style={{ marginBottom: 4, fontWeight: 600 }}>
               ① 4요소를 각각 입력하고 [확인]을 누르세요
@@ -188,7 +188,7 @@ export default function WarmupMode() {
         </div>
 
         {/* ── 우측: 완성 프롬프트 + AI 보내기 ─────────────────────────── */}
-        <div className="col" style={{ flex: '0 0 340px', gap: 16 }}>
+        <div className="col" style={{ flex: '0 0 380px', gap: 16 }}>
           <div
             className="card"
             style={{
