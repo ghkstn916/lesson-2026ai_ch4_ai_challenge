@@ -78,6 +78,7 @@ export default function WarmupMode() {
     setAttachText('')
     setAttachUrl('')
     setAttachError('')
+    setBaselineRegistered(null)
   }, [challenge.id])
 
   useEffect(() => {
@@ -101,8 +102,10 @@ export default function WarmupMode() {
     ? `${WARMUP_SYSTEM_PROMPT}\n\n— 이 미션의 추가 지시 —\n${challenge.systemAddon}`
     : WARMUP_SYSTEM_PROMPT
 
-  // 비공개 챌린지 (자기소개·진로) 또는 ⑥(편지)은 is_public=false 로 저장
-  const isPrivate = !!challenge.isPrivate
+  // 등록 정책
+  const allowChoose = challenge.allowChoosePublic === true   // ③·④에 두 버튼 표시
+  const ar = challenge.addRequestConfig
+  const addForcePrivate = ar?.forcePrivate === true
 
   async function fetchUrlContent() {
     setAttachError('')
@@ -170,8 +173,9 @@ export default function WarmupMode() {
     setLoading(false)
   }
 
-  // ③ baseline 등록
-  const handleRegisterBaseline = async () => {
+  // ③ baseline 등록 (isPublic 인자로 공개 여부 선택)
+  const [baselineRegistered, setBaselineRegistered] = useState(null) // {rowId, isPublic} | null
+  const handleRegisterBaseline = async (isPublic = true) => {
     if (!output) return
     try {
       const row = await insertAttempt({
@@ -182,8 +186,9 @@ export default function WarmupMode() {
         prompt: composedPrompt,
         output_text: output,
         self_check: { ...parts, isBaseline: true, hasAttachment: !!attachText.trim() },
-        is_public: !isPrivate,
+        is_public: isPublic,
       })
+      setBaselineRegistered({ rowId: row.id, isPublic })
       setHistory([row, ...history])
     } catch (e) {
       setError(e.message || '등록 실패')
@@ -233,7 +238,7 @@ export default function WarmupMode() {
     setVariantLoading(false)
   }
 
-  const registerVariant = async (exp) => {
+  const registerVariant = async (exp, isPublic = true) => {
     if (exp.registered) return
     try {
       const newParts = { ...parts, [exp.changedKey]: exp.newValue }
@@ -250,9 +255,13 @@ export default function WarmupMode() {
           isBaseline: false,
           experiment: { changed: exp.changedKey, from: exp.oldValue, to: exp.newValue },
         },
-        is_public: !isPrivate,
+        is_public: isPublic,
       })
-      setVariantExps(variantExps.map((e) => (e.id === exp.id ? { ...e, registered: true, rowId: row.id } : e)))
+      setVariantExps(
+        variantExps.map((e) =>
+          e.id === exp.id ? { ...e, registered: true, rowId: row.id, isPublic } : e
+        )
+      )
       setHistory([row, ...history])
     } catch (e) {
       setVariantError(e.message || '등록 실패')
@@ -319,8 +328,9 @@ export default function WarmupMode() {
     setAddLoading(false)
   }
 
-  const registerAdd = async (exp) => {
+  const registerAdd = async (exp, isPublic = true) => {
     if (exp.registered) return
+    const finalPublic = addForcePrivate ? false : isPublic
     try {
       const row = await insertAttempt({
         student_id: studentId,
@@ -329,11 +339,20 @@ export default function WarmupMode() {
         challenge_id: challenge.id,
         prompt: exp.prompt,
         output_text: exp.response,
-        self_check: { ...parts, isBaseline: false, userRequest: exp.userRequest, privateLetter: true },
+        self_check: {
+          ...parts,
+          isBaseline: false,
+          userRequest: exp.userRequest,
+          privateLetter: addForcePrivate || !finalPublic,
+        },
         reflection: exp.userRequest,
-        is_public: false, // 공개 갤러리 제외 — 교사 대시보드에서만 보임
+        is_public: finalPublic,
       })
-      setAddExps(addExps.map((e) => (e.id === exp.id ? { ...e, registered: true, rowId: row.id } : e)))
+      setAddExps(
+        addExps.map((e) =>
+          e.id === exp.id ? { ...e, registered: true, rowId: row.id, isPublic: finalPublic } : e
+        )
+      )
       setHistory([row, ...history])
     } catch (e) {
       setAddError(e.message || '등록 실패')
@@ -561,28 +580,24 @@ export default function WarmupMode() {
               >
                 {output}
               </div>
-              {isPrivate && (
+              {allowChoose && (
                 <p
-                  className="small"
-                  style={{
-                    marginTop: 10,
-                    padding: '6px 10px',
-                    background: 'rgba(245, 158, 11, 0.12)',
-                    color: 'var(--warning)',
-                    borderRadius: 'var(--radius)',
-                    fontSize: '0.8rem',
-                  }}
+                  className="small muted"
+                  style={{ marginTop: 10, fontSize: '0.8rem' }}
                 >
-                  🔒 이 미션의 결과는 공개 갤러리에 올라가지 않고 선생님만 볼 수 있어요.
+                  💡 모두 보는 갤러리에 등록하거나, 선생님께만 보이게 제출할 수 있어요.
                 </p>
               )}
-              <button
-                className="btn btn-primary"
-                onClick={handleRegisterBaseline}
-                style={{ width: '100%', marginTop: 12 }}
-              >
-                {isPrivate ? '📤 기본 결과 선생님께 제출' : '📌 기본 결과 갤러리에 등록'}
-              </button>
+              <RegisterButtons
+                registered={!!baselineRegistered}
+                isPublic={baselineRegistered?.isPublic}
+                onRegister={handleRegisterBaseline}
+                allowChoose={allowChoose}
+                forcePrivate={false}
+                publicLabel="📌 기본 결과 갤러리에 등록"
+                privateLabel="📤 기본 결과 선생님께만 제출"
+                style={{ marginTop: 12 }}
+              />
             </div>
           )}
 
@@ -733,20 +748,16 @@ export default function WarmupMode() {
                     >
                       {exp.response}
                     </div>
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => registerVariant(exp)}
-                      disabled={exp.registered}
-                      style={{ width: '100%', marginTop: 10 }}
-                    >
-                      {exp.registered
-                        ? isPrivate
-                          ? '✓ 선생님께 제출 완료'
-                          : '✓ 등록됨'
-                        : isPrivate
-                        ? '📤 이 변형 선생님께 제출'
-                        : '📌 이 변형 갤러리에 등록'}
-                    </button>
+                    <RegisterButtons
+                      registered={exp.registered}
+                      isPublic={exp.isPublic}
+                      onRegister={(pub) => registerVariant(exp, pub)}
+                      allowChoose={allowChoose}
+                      forcePrivate={false}
+                      publicLabel="📌 이 변형 갤러리에 등록"
+                      privateLabel="📤 이 변형 선생님께만 제출"
+                      style={{ marginTop: 10 }}
+                    />
                   </div>
                 )
               })}
@@ -797,36 +808,42 @@ export default function WarmupMode() {
             </div>
           )}
 
-          {/* ⑥ 내가 하고 싶은 말 더하기 — 1번 미션 전용 */}
-          {output && challenge.hasAddRequest && (
+          {/* ⑥ 내가 하고 싶은 말 / 결과 수정 — challenge.hasAddRequest일 때만 */}
+          {output && challenge.hasAddRequest && ar && (
             <div className="card" style={{ borderLeft: '4px solid #be123c' }}>
               <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>
-                ⑥ 내가 하고 싶은 말 더하기 <span style={{ fontSize: '0.7rem', color: 'var(--warning)', marginLeft: 6 }}>🔒 비공개</span>
+                ⑥ {ar.title}
+                {addForcePrivate && (
+                  <span style={{ fontSize: '0.7rem', color: 'var(--warning)', marginLeft: 6 }}>
+                    🔒 비공개
+                  </span>
+                )}
               </p>
               <p className="muted small" style={{ marginBottom: 14, fontSize: '0.88rem', lineHeight: 1.7 }}>
-                마지막 단계 — 내가 미래의 나(친구)에게 진짜로 전하고 싶은 한마디를 직접 적어보세요.
-                추억, 다짐, 작은 표현 무엇이든. AI가 그 마음을 편지 안에 자연스럽게 녹여서 다시 써줍니다.
+                {ar.desc}
               </p>
-              <p
-                className="small"
-                style={{
-                  padding: '8px 10px',
-                  background: 'rgba(245, 158, 11, 0.12)',
-                  color: 'var(--warning)',
-                  borderRadius: 'var(--radius)',
-                  marginBottom: 12,
-                  fontSize: '0.82rem',
-                }}
-              >
-                🔒 이 편지는 <strong>공개 갤러리에 올라가지 않고 선생님만 볼 수 있어요.</strong> D-30에 본인에게 전달될
-                진짜 편지이므로 솔직하게 적어도 괜찮습니다.
-              </p>
+
+              {addForcePrivate && (
+                <p
+                  className="small"
+                  style={{
+                    padding: '8px 10px',
+                    background: 'rgba(245, 158, 11, 0.12)',
+                    color: 'var(--warning)',
+                    borderRadius: 'var(--radius)',
+                    marginBottom: 12,
+                    fontSize: '0.82rem',
+                  }}
+                >
+                  🔒 이 결과는 <strong>공개 갤러리에 올라가지 않고 선생님만 볼 수 있어요.</strong> D-30에 본인에게 전달될
+                  진짜 편지이므로 솔직하게 적어도 괜찮습니다.
+                </p>
+              )}
+
               <textarea
                 value={addRequest}
                 onChange={(e) => setAddRequest(e.target.value)}
-                placeholder={`예) "5월에 같이 갔던 한강 야자, 그때 네가 한 말을 꼭 떠올렸으면 좋겠어"
-예) "흔들릴 때 너는 혼자가 아니라는 한 줄을 꼭 넣어줘"
-예) "마지막에 우리 셋이 다시 모일 봄을 기약하는 문장으로 끝맺어줘"`}
+                placeholder={ar.placeholder}
                 rows={4}
                 style={{
                   width: '100%',
@@ -851,7 +868,7 @@ export default function WarmupMode() {
                 disabled={addLoading || !addRequest.trim()}
                 style={{ width: '100%', marginTop: 12, padding: '12px', fontSize: '0.98rem' }}
               >
-                {addLoading ? '편지 다시 쓰는 중...' : '✉️ 내 말 더해서 편지 다시 받기'}
+                {addLoading ? '다시 작성 중...' : ar.buttonText}
               </button>
               {addError && <p className="error" style={{ marginTop: 10 }}>{addError}</p>}
 
@@ -869,9 +886,9 @@ export default function WarmupMode() {
                 >
                   <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-                      💌 편지 #{addExps.length - idx}
+                      {ar.resultEmoji} {ar.resultLabel} #{addExps.length - idx}
                     </span>
-                    <span className="muted small">내가 더한 말 반영</span>
+                    <span className="muted small">내가 더한 지시 반영</span>
                   </div>
                   <div
                     style={{
@@ -886,7 +903,7 @@ export default function WarmupMode() {
                       color: 'var(--text-muted)',
                     }}
                   >
-                    <strong style={{ color: 'var(--warning)' }}>💬 내가 더한 말:</strong>{' '}
+                    <strong style={{ color: 'var(--warning)' }}>💬 내가 적은 지시:</strong>{' '}
                     {exp.userRequest}
                   </div>
                   <div
@@ -901,14 +918,25 @@ export default function WarmupMode() {
                   >
                     {exp.response}
                   </div>
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => registerAdd(exp)}
-                    disabled={exp.registered}
-                    style={{ width: '100%', marginTop: 10 }}
-                  >
-                    {exp.registered ? '✓ 선생님께 제출 완료 — D-30에 전달됩니다' : '📤 이 편지 선생님께만 제출'}
-                  </button>
+                  <RegisterButtons
+                    registered={exp.registered}
+                    isPublic={exp.isPublic}
+                    onRegister={(pub) => registerAdd(exp, pub)}
+                    allowChoose={allowChoose && !addForcePrivate}
+                    forcePrivate={addForcePrivate}
+                    publicLabel={`📌 이 ${ar.resultLabel} 갤러리에 등록`}
+                    privateLabel={
+                      addForcePrivate
+                        ? `📤 이 ${ar.resultLabel} 선생님께만 제출`
+                        : `📤 이 ${ar.resultLabel} 선생님께만 제출`
+                    }
+                    doneLabelPrivate={
+                      addForcePrivate
+                        ? '✓ 선생님께 제출 완료 — D-30에 전달됩니다'
+                        : '✓ 선생님께 제출 완료'
+                    }
+                    style={{ marginTop: 10 }}
+                  />
                 </div>
               ))}
             </div>
@@ -961,6 +989,98 @@ export default function WarmupMode() {
 }
 
 // ── 4요소 1개 입력 컴포넌트 ────────────────────────────────────────────────
+// ── 등록 버튼 — 공개/비공개 선택 또는 단일 ─────────────────────────────────
+function RegisterButtons({
+  registered,
+  isPublic,
+  onRegister,
+  allowChoose,
+  forcePrivate,
+  publicLabel = '📌 갤러리에 등록',
+  privateLabel = '📤 선생님께만 제출',
+  doneLabelPublic = '✓ 갤러리에 등록됨',
+  doneLabelPrivate = '✓ 선생님께 제출 완료',
+  style,
+}) {
+  if (registered) {
+    const done = isPublic === false ? doneLabelPrivate : doneLabelPublic
+    return (
+      <button
+        className="btn btn-primary"
+        disabled
+        style={{
+          width: '100%',
+          background: 'var(--success)',
+          borderColor: 'var(--success)',
+          color: 'white',
+          opacity: 1,
+          ...style,
+        }}
+      >
+        {done}
+      </button>
+    )
+  }
+
+  if (forcePrivate) {
+    return (
+      <button
+        className="btn btn-primary"
+        onClick={() => onRegister(false)}
+        style={{ width: '100%', ...style }}
+      >
+        {privateLabel}
+      </button>
+    )
+  }
+
+  if (allowChoose) {
+    return (
+      <div className="row" style={{ gap: 8, ...style }}>
+        <button
+          className="btn"
+          onClick={() => onRegister(true)}
+          style={{
+            flex: 1,
+            padding: '10px',
+            background: 'var(--accent)',
+            color: 'white',
+            borderColor: 'var(--accent)',
+            fontSize: '0.9rem',
+          }}
+        >
+          {publicLabel}
+        </button>
+        <button
+          className="btn"
+          onClick={() => onRegister(false)}
+          style={{
+            flex: 1,
+            padding: '10px',
+            background: 'var(--warning)',
+            color: 'white',
+            borderColor: 'var(--warning)',
+            fontSize: '0.9rem',
+          }}
+        >
+          {privateLabel}
+        </button>
+      </div>
+    )
+  }
+
+  // 기본: 공개 한 버튼
+  return (
+    <button
+      className="btn btn-primary"
+      onClick={() => onRegister(true)}
+      style={{ width: '100%', ...style }}
+    >
+      {publicLabel}
+    </button>
+  )
+}
+
 function PartInput({ meta, value, confirmed, suggestions, onChange, onConfirm, onClickSuggestion }) {
   const trimmed = (value || '').trim()
   return (

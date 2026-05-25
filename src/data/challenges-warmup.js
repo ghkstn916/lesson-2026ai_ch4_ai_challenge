@@ -12,6 +12,19 @@ export const WARMUP_CHALLENGES = [
     description:
       '수능을 30일 앞둔 시점에 받게 될 한 통의 손편지를 미리 써둡니다. ③에서는 기본 양식대로 감동적인 편지 한 통을 받아보고, ④에서 본인이 원하는 양식·글귀로 직접 바꿔보세요.',
     hasAddRequest: true,
+    addRequestConfig: {
+      title: '내가 하고 싶은 말 더하기',
+      headerEmoji: '💌',
+      desc: '마지막 단계 — 내가 미래의 나(친구)에게 진짜로 전하고 싶은 한마디를 직접 적어보세요. 추억, 다짐, 작은 표현 무엇이든. AI가 그 마음을 편지 안에 자연스럽게 녹여서 다시 써줍니다.',
+      placeholder: `예) "5월에 같이 갔던 한강 야자, 그때 네가 한 말을 꼭 떠올렸으면 좋겠어"
+예) "흔들릴 때 너는 혼자가 아니라는 한 줄을 꼭 넣어줘"
+예) "마지막에 우리 셋이 다시 모일 봄을 기약하는 문장으로 끝맺어줘"`,
+      buttonText: '✉️ 내 말 더해서 편지 다시 받기',
+      resultLabel: '편지',
+      resultEmoji: '💌',
+      forcePrivate: true, // 1번 미션 ⑥은 D-30 편지라 항상 비공개
+    },
+    allowChoosePublic: false, // 1번 미션 ③·④는 공개 한 버튼 (변경 없음)
     defaults: {
       role: '나에게 쓰는 나',
       context: '',
@@ -51,6 +64,21 @@ export const WARMUP_CHALLENGES = [
     description:
       '본인이 관심 있는 진로나 직업에 대해 자료를 가져와 보거나(직업 소개 페이지·뉴스·인터뷰 링크 등) 직접 적은 뒤, AI와 함께 진로 중심 자기소개 한 단락을 만들어봅니다. (생활기록부 기재 참고 자료로도 활용 가능)',
     hasAttachment: true,
+    allowChoosePublic: true, // ③·④·⑥ 등록 시 공개/비공개 선택 두 버튼
+    hasAddRequest: true,
+    addRequestConfig: {
+      title: '결과 직접 수정·다듬기',
+      headerEmoji: '📝',
+      desc: 'AI 출력이 마음에 안 들면 직접 디테일하게 수정·추가 지시를 적어보세요. AI가 그 지시를 반영해 다시 작성합니다. 여러 번 반복해서 마음에 드는 한 단락이 나올 때까지 다듬어보세요.',
+      placeholder: `예) "두 번째 문장을 데이터 분석 동아리 활동 중심으로 더 구체적으로 바꿔줘"
+예) "어조를 면접관 앞에서 말하듯 차분하게"
+예) "마지막에 '관련 학과에 진학해 더 깊이 배우고자 함' 같은 문장으로 마무리"
+예) "수상 부분은 빼고 독서·탐구 활동에 더 무게를"`,
+      buttonText: '🔧 수정 지시 보내기',
+      resultLabel: '수정본',
+      resultEmoji: '📝',
+      forcePrivate: false,
+    },
     // 공개 갤러리에서 친구들 진로 이야기를 보며 자극받는 게 학습 효과가 큼 → 공개 유지
     systemAddon: `이 미션은 학생이 관심 있는 진로·직업을 자기 이야기와 엮는 작업이다.
 
