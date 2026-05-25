@@ -8,12 +8,12 @@
 |---|---|---|---|
 | 1 | 워밍업 (warmup) | 텍스트 | ✅ 구현 |
 | 2 | 시각화 (visual) | VPython 3D | ✅ 구현 |
-| 3 | 이미지 (image) | PNG (GPT Image 2) | 🚧 골격 |
-| 4 | 구조화 (structure) | JSON → SVG → HTML 표 | 🚧 골격 |
-| 5 | 한계 (limit) | 텍스트 비교 | 🚧 골격 |
-| 6 | 도구 (tool) | 도구 호출 시퀀스 | 🚧 골격 |
-| 7 | 리액트 (react) | ReAct 체인 + 기획서 | 🚧 골격 |
-| 8 | 프로젝트 (project) | 결과 + 갤러리 + 토론 | 🚧 골격 |
+| 3 | 이미지 (image) | PNG (GPT Image 2) | ✅ 구현 |
+| 4 | 구조화 (structure) | JSON → SVG → HTML 표 | ✅ 구현 |
+| 5 | 한계 (limit) | 텍스트 비교 (5회 병렬) | ✅ 구현 |
+| 6 | 도구 (tool) | 도구 호출 시퀀스 (multi-turn) | ✅ 구현 |
+| 7 | 리액트 (react) | ReAct + 미니 에이전트 기획서 | ✅ 구현 |
+| 8 | 프로젝트 (project) | 발표 + 조 토론 + 코멘트 | ✅ 구현 |
 
 ## 기술 스택
 

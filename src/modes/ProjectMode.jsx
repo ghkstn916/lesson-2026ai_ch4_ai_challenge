@@ -1,4 +1,642 @@
-import PreviewMode from './PreviewMode.jsx'
+import { useEffect, useState } from 'react'
+import StudentLayout from '../components/StudentLayout.jsx'
+import ModeIntro from '../components/ModeIntro.jsx'
+import useStudentStore from '../store/studentStore.js'
+import { RECAP, DISCUSSION_QUESTIONS, PROJECT_REGISTER_HINT } from '../data/challenges-project.js'
+import { REACT_SYSTEM_PROMPT } from '../data/challenges-react.js'
+import { TOOLS_SPEC, TOOL_LABELS, executeTool, resetMemo } from '../lib/tools.js'
+import { callClaude } from '../lib/claude.js'
+import {
+  insertAttempt,
+  fetchMyAttempts,
+  fetchMyProjectPlan,
+  ensureGroups,
+  fetchMyGroup,
+  fetchClassStudents,
+  fetchProjectAttemptsForStudents,
+  fetchCommentsForAttempts,
+  addGalleryComment,
+  fetchMyCommentCount,
+} from '../lib/supabase.js'
+
+const MAX_ROUNDS = 10
+
 export default function ProjectMode() {
-  return <PreviewMode modeKey="project" />
+  const { studentId, sessionId } = useStudentStore()
+  const [tab, setTab] = useState('present')
+
+  // 발표용 상태
+  const [planLoaded, setPlanLoaded] = useState(null)
+  const [demoPrompt, setDemoPrompt] = useState('')
+  const [trace, setTrace] = useState([])
+  const [finalAnswer, setFinalAnswer] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [history, setHistory] = useState([])
+
+  // 토론용 상태
+  const [group, setGroup] = useState(null)
+  const [groupMembers, setGroupMembers] = useState([])
+  const [groupAttempts, setGroupAttempts] = useState([])
+  const [comments, setComments] = useState({})  // {attemptId: [...]}
+  const [myCommentCount, setMyCommentCount] = useState(0)
+  const [groupsLoading, setGroupsLoading] = useState(false)
+
+  // 토론 메모
+  const [discNotes, setDiscNotes] = useState({ career: '', mechanism: '' })
+
+  // ── 초기 로드 ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!studentId) return
+    fetchMyAttempts({ studentId, mode: 'project' }).then(setHistory).catch(() => {})
+
+    fetchMyProjectPlan(studentId).then((p) => {
+      setPlanLoaded(p)
+      if (p?.demo_prompt) setDemoPrompt(p.demo_prompt)
+    })
+
+    fetchMyCommentCount(studentId).then(setMyCommentCount).catch(() => {})
+  }, [studentId])
+
+  const loadGroups = async () => {
+    setGroupsLoading(true)
+    try {
+      // 같은 학급에 조가 없으면 자동 배정
+      await ensureGroups(sessionId, 5)
+      const my = await fetchMyGroup({ sessionId, studentId })
+      setGroup(my)
+
+      if (my) {
+        const allStudents = await fetchClassStudents(sessionId)
+        const memberMap = Object.fromEntries(allStudents.map((s) => [s.id, s]))
+        setGroupMembers(my.member_student_ids.map((id) => memberMap[id]).filter(Boolean))
+
+        const attempts = await fetchProjectAttemptsForStudents(my.member_student_ids)
+        setGroupAttempts(attempts)
+
+        const cmts = await fetchCommentsForAttempts(attempts.map((a) => a.id))
+        const grouped = {}
+        for (const c of cmts) {
+          if (!grouped[c.attempt_id]) grouped[c.attempt_id] = []
+          grouped[c.attempt_id].push(c)
+        }
+        setComments(grouped)
+      }
+    } catch (e) {
+      setError(e.message || '조 정보 로드 실패')
+    }
+    setGroupsLoading(false)
+  }
+
+  useEffect(() => {
+    if (tab === 'group' && sessionId && studentId && !group) loadGroups()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab])
+
+  // ── 본인 에이전트 실행 (multi-turn) ────────────────────────────────────────
+  const handleRun = async () => {
+    setError('')
+    if (!demoPrompt.trim()) {
+      setError('시범 프롬프트를 작성해주세요.')
+      return
+    }
+    setLoading(true)
+    setTrace([])
+    setFinalAnswer('')
+    resetMemo()
+
+    const messages = [{ role: 'user', content: demoPrompt }]
+    const newTrace = [{ kind: 'user', text: demoPrompt }]
+    setTrace([...newTrace])
+
+    try {
+      for (let round = 0; round < MAX_ROUNDS; round++) {
+        const { raw } = await callClaude({
+          model: 'claude-haiku-4-5-20251001',
+          maxTokens: 1024,
+          system: REACT_SYSTEM_PROMPT,
+          messages,
+          tools: TOOLS_SPEC,
+        })
+        const assistantContent = raw.content || []
+        messages.push({ role: 'assistant', content: assistantContent })
+
+        const textParts = assistantContent.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
+        if (textParts) newTrace.push({ kind: 'thought', text: textParts })
+
+        const toolUses = assistantContent.filter((b) => b.type === 'tool_use')
+        if (toolUses.length === 0) {
+          setFinalAnswer(textParts)
+          setTrace([...newTrace])
+          break
+        }
+
+        const toolResults = []
+        for (const u of toolUses) {
+          let result, isError = false
+          try {
+            result = executeTool(u.name, u.input)
+          } catch (err) {
+            result = { error: err.message }
+            isError = true
+          }
+          newTrace.push({ kind: 'tool', name: u.name, input: u.input, output: result, error: isError })
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: u.id,
+            content: JSON.stringify(result),
+            is_error: isError,
+          })
+        }
+        setTrace([...newTrace])
+        messages.push({ role: 'user', content: toolResults })
+      }
+    } catch (e) {
+      setError(e.message || '오류')
+    }
+    setLoading(false)
+  }
+
+  const handleRegister = async () => {
+    if (trace.length === 0) return
+    try {
+      const row = await insertAttempt({
+        student_id: studentId,
+        session_number: 8,
+        mode: 'project',
+        challenge_id: planLoaded?.agent_name || 'my-agent',
+        prompt: demoPrompt,
+        output_text: finalAnswer,
+        tool_trace: trace,
+      })
+      setHistory([row, ...history])
+    } catch (e) {
+      setError(e.message || '등록 실패')
+    }
+  }
+
+  const handleComment = async (attemptId, content) => {
+    if (!content.trim()) return
+    try {
+      const c = await addGalleryComment({
+        attemptId,
+        authorId: studentId,
+        content: content.trim(),
+      })
+      setComments({ ...comments, [attemptId]: [...(comments[attemptId] || []), c] })
+      setMyCommentCount(myCommentCount + 1)
+    } catch (e) {
+      alert(e.message || '코멘트 실패')
+    }
+  }
+
+  return (
+    <StudentLayout needKey="anthropic" title="8차시 프로젝트">
+      <ModeIntro modeKey="project" />
+
+      {/* 단원 회수 카드 */}
+      <RecapCard />
+
+      {/* 탭 */}
+      <div className="card-sm" style={{ marginBottom: 16, display: 'flex', gap: 6 }}>
+        {[
+          { k: 'present', label: '🎤 내 에이전트 발표' },
+          { k: 'group', label: '👥 조 토론 + 동료 작품' },
+          { k: 'memo', label: '📝 토론 메모' },
+        ].map((t) => (
+          <button
+            key={t.k}
+            className="btn"
+            onClick={() => setTab(t.k)}
+            style={{
+              flex: 1,
+              padding: '10px 12px',
+              background: tab === t.k ? 'var(--accent)' : 'var(--surface2)',
+              borderColor: tab === t.k ? 'var(--accent)' : 'var(--border)',
+              color: tab === t.k ? 'white' : 'var(--text)',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'present' && (
+        <PresentTab
+          plan={planLoaded}
+          demoPrompt={demoPrompt}
+          setDemoPrompt={setDemoPrompt}
+          trace={trace}
+          finalAnswer={finalAnswer}
+          loading={loading}
+          error={error}
+          onRun={handleRun}
+          onRegister={handleRegister}
+          history={history}
+        />
+      )}
+
+      {tab === 'group' && (
+        <GroupTab
+          group={group}
+          members={groupMembers}
+          attempts={groupAttempts}
+          comments={comments}
+          studentId={studentId}
+          loading={groupsLoading}
+          onComment={handleComment}
+          myCommentCount={myCommentCount}
+          onLoad={loadGroups}
+        />
+      )}
+
+      {tab === 'memo' && (
+        <MemoTab notes={discNotes} setNotes={setDiscNotes} studentId={studentId} />
+      )}
+    </StudentLayout>
+  )
+}
+
+// ── 단원 회수 카드 ──────────────────────────────────────────────────────────
+function RecapCard() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="card" style={{ marginBottom: 16, borderLeft: '4px solid var(--success)' }}>
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <p style={{ fontWeight: 700 }}>🌳 단원 전체 회수 — 1차시부터 7차시까지의 한 줄</p>
+        <button className="btn btn-ghost" onClick={() => setOpen(!open)} style={{ fontSize: '0.8rem' }}>
+          {open ? '접기' : '펼치기'}
+        </button>
+      </div>
+      {open && (
+        <div className="col" style={{ gap: 6, marginTop: 10 }}>
+          {RECAP.map((r) => (
+            <div key={r.n} style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
+              <span
+                style={{
+                  flex: '0 0 26px',
+                  background: 'var(--surface2)',
+                  borderRadius: 13,
+                  textAlign: 'center',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                }}
+              >
+                {r.n}
+              </span>
+              <span style={{ flex: '0 0 80px', fontWeight: 600, color: 'var(--accent-hover)' }}>
+                {r.key}
+              </span>
+              <span className="muted small" style={{ flex: 1 }}>
+                {r.take}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── 발표 탭 ──────────────────────────────────────────────────────────────
+function PresentTab({ plan, demoPrompt, setDemoPrompt, trace, finalAnswer, loading, error, onRun, onRegister, history }) {
+  return (
+    <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
+      <div className="col" style={{ flex: '0 0 360px', gap: 16 }}>
+        {plan ? (
+          <div className="card-sm">
+            <p className="muted small" style={{ marginBottom: 4 }}>7차시 기획서</p>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>{plan.agent_name}</h3>
+            <p className="muted small" style={{ marginTop: 4 }}>
+              <strong>대상:</strong> {plan.target_user || '—'}
+            </p>
+            <p className="muted small">
+              <strong>할 일:</strong> {plan.task_one_liner}
+            </p>
+            <div style={{ marginTop: 8 }}>
+              {(plan.tools_used || []).map((t) => (
+                <span key={t} className="tag" style={{ fontSize: '0.72rem' }}>
+                  {TOOL_LABELS[t]?.emoji} {TOOL_LABELS[t]?.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div
+            className="card-sm"
+            style={{ color: 'var(--warning)', background: 'rgba(245,158,11,0.1)' }}
+          >
+            ⚠️ 7차시 기획서가 비어 있어요. <a href="/student/react">7차시</a>에서 먼저 기획서를 저장해주세요.
+          </div>
+        )}
+
+        <div className="card">
+          <p className="muted small" style={{ marginBottom: 8 }}>{PROJECT_REGISTER_HINT}</p>
+          <label className="field">
+            <span>시범 프롬프트 (수정 가능)</span>
+            <textarea
+              value={demoPrompt}
+              onChange={(e) => setDemoPrompt(e.target.value)}
+              rows={5}
+              placeholder="7차시 기획서의 시범 프롬프트가 자동으로 들어옵니다"
+            />
+          </label>
+          <button
+            className="btn btn-primary"
+            onClick={onRun}
+            disabled={loading || !demoPrompt.trim()}
+            style={{ width: '100%', marginTop: 10 }}
+          >
+            {loading ? '에이전트 동작 중...' : '🎤 내 에이전트 실행'}
+          </button>
+          {error && <p className="error" style={{ marginTop: 10 }}>{error}</p>}
+        </div>
+
+        {history.length > 0 && (
+          <div className="card-sm">
+            <p className="muted small">발표 등록 — {history.length}회</p>
+            {history.slice(0, 3).map((a) => (
+              <div className="attempt" key={a.id} style={{ fontSize: '0.82rem' }}>
+                <span className="muted">{new Date(a.created_at).toLocaleTimeString()}</span>
+                <div className="muted small" style={{ marginTop: 4 }}>
+                  {a.prompt.slice(0, 80)}{a.prompt.length > 80 && '...'}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="col" style={{ flex: 1, gap: 16 }}>
+        {trace.length === 0 ? (
+          <div className="card-sm muted small" style={{ textAlign: 'center', padding: 30 }}>
+            기획서의 시범 프롬프트를 실행해보세요. 결과 시퀀스가 여기에 표시됩니다.
+          </div>
+        ) : (
+          <div className="card">
+            <p className="muted small" style={{ marginBottom: 10 }}>🛣 에이전트 호출 시퀀스</p>
+            <TraceView trace={trace} />
+          </div>
+        )}
+
+        {finalAnswer && (
+          <div className="card" style={{ borderColor: 'var(--success)' }}>
+            <p className="muted small">💬 최종 답</p>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.95rem', marginTop: 6 }}>{finalAnswer}</div>
+            <button className="btn btn-primary" onClick={onRegister} style={{ marginTop: 12, width: '100%' }}>
+              📌 갤러리에 발표 등록
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── 조 탭 ────────────────────────────────────────────────────────────────
+function GroupTab({ group, members, attempts, comments, studentId, loading, onComment, myCommentCount, onLoad }) {
+  const [drafts, setDrafts] = useState({})
+
+  if (loading) {
+    return <p className="muted">조 배정 중...</p>
+  }
+  if (!group) {
+    return (
+      <div className="card">
+        <p className="muted">아직 조가 배정되지 않았어요.</p>
+        <button className="btn btn-primary" onClick={onLoad} style={{ marginTop: 10 }}>
+          🎲 조 배정 받기
+        </button>
+        <p className="muted small" style={{ marginTop: 8 }}>
+          학급 전체 학생을 랜덤 5인씩 묶어 자동 배정합니다.
+        </p>
+      </div>
+    )
+  }
+
+  const me = members.find((m) => m.id === studentId)
+  const others = members.filter((m) => m.id !== studentId)
+
+  return (
+    <div className="col" style={{ gap: 16 }}>
+      <div className="card-sm">
+        <p className="muted small">내 조</p>
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginTop: 2 }}>{group.group_number}조</h3>
+        <p className="muted small" style={{ marginTop: 6 }}>
+          멤버 {members.length}명: {members.map((m) => `${m.student_number} ${m.name}`).join(' · ')}
+        </p>
+      </div>
+
+      <div
+        className="card-sm"
+        style={{
+          background: 'rgba(99,102,241,0.08)',
+          borderColor: 'var(--accent)',
+          fontSize: '0.88rem',
+        }}
+      >
+        💬 동료 작품에 코멘트 — 현재 {myCommentCount}개 / 권장 3개 이상
+      </div>
+
+      {attempts.length === 0 && (
+        <p className="muted small">조원들이 아직 발표를 등록하지 않았어요. 잠시 후 새로고침해보세요.</p>
+      )}
+
+      <div className="col" style={{ gap: 12 }}>
+        {attempts.map((a) => {
+          const myCmt = comments[a.id] || []
+          const draft = drafts[a.id] || ''
+          const isMine = a.student?.id === studentId
+          return (
+            <div className="card" key={a.id}>
+              <div className="row" style={{ justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 700 }}>
+                  {a.student?.student_number} {a.student?.name}
+                  {isMine && <span className="tag" style={{ marginLeft: 6 }}>나</span>}
+                </span>
+                <span className="muted small">{new Date(a.created_at).toLocaleString()}</span>
+              </div>
+              <div className="muted small" style={{ marginTop: 6 }}>
+                <strong>시범 프롬프트:</strong> {a.prompt.slice(0, 160)}{a.prompt.length > 160 && '...'}
+              </div>
+              {a.output_text && (
+                <div style={{ marginTop: 6, fontSize: '0.88rem', whiteSpace: 'pre-wrap' }}>
+                  <strong>최종 답:</strong> {a.output_text.slice(0, 200)}{a.output_text.length > 200 && '...'}
+                </div>
+              )}
+              {a.tool_trace && (
+                <div style={{ marginTop: 6 }}>
+                  {a.tool_trace.filter((s) => s.kind === 'tool').map((s, i) => (
+                    <span key={i} className="tag" style={{ fontSize: '0.7rem' }}>
+                      {TOOL_LABELS[s.name]?.emoji} {s.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ marginTop: 10, padding: 10, background: 'var(--bg)', borderRadius: 'var(--radius)' }}>
+                <p className="muted small" style={{ marginBottom: 6 }}>💭 코멘트</p>
+                {myCmt.length === 0 && <p className="muted small">아직 코멘트가 없어요.</p>}
+                {myCmt.map((c) => (
+                  <div key={c.id} style={{ fontSize: '0.85rem', marginTop: 4 }}>
+                    <strong>{c.author?.name}:</strong> {c.content}
+                  </div>
+                ))}
+
+                {!isMine && (
+                  <div className="row" style={{ marginTop: 8, gap: 6 }}>
+                    <input
+                      type="text"
+                      value={draft}
+                      onChange={(e) => setDrafts({ ...drafts, [a.id]: e.target.value })}
+                      placeholder="좋았던 점·아이디어·궁금한 점..."
+                      style={{
+                        flex: 1,
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius)',
+                        padding: '6px 10px',
+                        color: 'var(--text)',
+                        fontSize: '0.85rem',
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          onComment(a.id, draft)
+                          setDrafts({ ...drafts, [a.id]: '' })
+                        }
+                      }}
+                    />
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        onComment(a.id, draft)
+                        setDrafts({ ...drafts, [a.id]: '' })
+                      }}
+                      disabled={!draft.trim()}
+                      style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                    >
+                      등록
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── 토론 메모 탭 ────────────────────────────────────────────────────────────
+function MemoTab({ notes, setNotes, studentId }) {
+  const [saving, setSaving] = useState(false)
+  const [savedAt, setSavedAt] = useState(null)
+  const [err, setErr] = useState('')
+
+  const save = async () => {
+    setErr('')
+    if (!notes.career.trim() && !notes.mechanism.trim()) {
+      setErr('한 문항 이상 적어주세요.')
+      return
+    }
+    setSaving(true)
+    try {
+      await insertAttempt({
+        student_id: studentId,
+        session_number: 8,
+        mode: 'project',
+        challenge_id: 'discussion-memo',
+        prompt: '[토론 메모 폼]',
+        output_text: '',
+        reflection: `[1. 진로 관점]\n${notes.career}\n\n[2. 메커니즘 회수]\n${notes.mechanism}`,
+      })
+      setSavedAt(new Date())
+    } catch (e) {
+      setErr(e.message || '저장 실패')
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div className="col" style={{ gap: 14 }}>
+      {DISCUSSION_QUESTIONS.map((q) => (
+        <div key={q.id} className="card">
+          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 4 }}>{q.title}</h3>
+          <p className="muted small" style={{ marginBottom: 10 }}>{q.prompt}</p>
+          <textarea
+            value={notes[q.id]}
+            onChange={(e) => setNotes({ ...notes, [q.id]: e.target.value })}
+            rows={5}
+            style={{
+              width: '100%',
+              background: 'var(--bg)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              padding: '8px 10px',
+              color: 'var(--text)',
+              fontSize: '0.92rem',
+              fontFamily: 'inherit',
+              resize: 'vertical',
+            }}
+            placeholder="조 토론에서 나온 본인 생각을 짧게 정리"
+          />
+        </div>
+      ))}
+      {err && <p className="error">{err}</p>}
+      <button className="btn btn-primary" onClick={save} disabled={saving}>
+        {saving ? '저장 중...' : savedAt ? `💾 다시 저장 (마지막: ${savedAt.toLocaleTimeString()})` : '💾 메모 저장'}
+      </button>
+    </div>
+  )
+}
+
+// ── Trace 시각화 (재사용) ───────────────────────────────────────────────
+function TraceView({ trace }) {
+  return (
+    <div className="col" style={{ gap: 8 }}>
+      {trace.map((step, i) => {
+        if (step.kind === 'user') {
+          return <Step key={i} color="#6366f1" emoji="🧑" label="질문">
+            <div style={{ whiteSpace: 'pre-wrap' }}>{step.text}</div>
+          </Step>
+        }
+        if (step.kind === 'thought') {
+          return <Step key={i} color="#94a3b8" emoji="💭" label="AI 생각">
+            <div style={{ whiteSpace: 'pre-wrap', color: 'var(--text-muted)' }}>{step.text}</div>
+          </Step>
+        }
+        if (step.kind === 'tool') {
+          const label = TOOL_LABELS[step.name]
+          return <Step
+            key={i}
+            color={step.error ? '#ef4444' : '#22c55e'}
+            emoji={label?.emoji || '🛠'}
+            label={`도구 — ${label?.label || step.name}`}
+          >
+            <div style={{ fontSize: '0.82rem' }}>
+              <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.78rem', overflowX: 'auto' }}>
+                {JSON.stringify(step.input, null, 2)}
+              </pre>
+              <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.78rem', overflowX: 'auto', marginTop: 4 }}>
+                {JSON.stringify(step.output, null, 2)}
+              </pre>
+            </div>
+          </Step>
+        }
+        return null
+      })}
+    </div>
+  )
+}
+
+function Step({ color, emoji, label, children }) {
+  return (
+    <div style={{ borderLeft: `3px solid ${color}`, paddingLeft: 12, marginLeft: 4 }}>
+      <div style={{ fontSize: '0.78rem', color, fontWeight: 700, marginBottom: 4 }}>
+        {emoji} {label}
+      </div>
+      <div>{children}</div>
+    </div>
+  )
 }

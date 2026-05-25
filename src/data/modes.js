@@ -64,7 +64,7 @@ export const MODES = [
     emoji: '🧠',
     summary: 'ReAct 다단계 추론·행동 체인 + 미니 에이전트 기획서 작성',
     needsKey: 'anthropic',
-    status: 'scaffold',
+    status: 'ready',
   },
   {
     key: 'project',
@@ -73,7 +73,7 @@ export const MODES = [
     emoji: '🎓',
     summary: '내 미니 에이전트 완성 + 갤러리 코멘트 + 종합 토론',
     needsKey: 'anthropic',
-    status: 'scaffold',
+    status: 'ready',
   },
 ]
 
