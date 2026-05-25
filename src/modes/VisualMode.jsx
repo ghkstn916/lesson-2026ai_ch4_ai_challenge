@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import StudentLayout from '../components/StudentLayout.jsx'
 import ModeIntro from '../components/ModeIntro.jsx'
+import CTOverview from '../components/CTOverview.jsx'
 import VPythonRunner from '../components/shared/VPythonRunner.jsx'
 import useStudentStore from '../store/studentStore.js'
 import { BATTLE_CHALLENGES } from '../data/challenges-battle.js'
@@ -97,6 +98,7 @@ export default function VisualMode() {
   return (
     <StudentLayout needKey="anthropic" title="2차시 시각화">
       <ModeIntro modeKey="visual" />
+      <CTOverview />
       <div className="row" style={{ gap: 20, alignItems: 'flex-start' }}>
         {/* ── 좌측: 챌린지 선택 ─────────────────────────────────────────── */}
         <div className="col" style={{ flex: '0 0 260px', gap: 16 }}>

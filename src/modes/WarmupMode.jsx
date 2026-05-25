@@ -259,6 +259,7 @@ export default function WarmupMode() {
                   value={parts[v.key]}
                   confirmed={confirmed[v.key]}
                   suggestions={challenge.suggestions[v.key] || []}
+                  placeholder={challenge.placeholders?.[v.key]}
                   onChange={(val) => handleChange(v.key, val)}
                   onConfirm={() => handleConfirm(v.key)}
                   onClickSuggestion={(val) => handleClickSuggestion(v.key, val)}
@@ -505,7 +506,7 @@ export default function WarmupMode() {
 }
 
 // ── 4요소 1개 입력 컴포넌트 ────────────────────────────────────────────────
-function PartInput({ meta, value, confirmed, suggestions, onChange, onConfirm, onClickSuggestion }) {
+function PartInput({ meta, value, confirmed, suggestions, placeholder, onChange, onConfirm, onClickSuggestion }) {
   const trimmed = (value || '').trim()
   return (
     <div
@@ -534,7 +535,7 @@ function PartInput({ meta, value, confirmed, suggestions, onChange, onConfirm, o
           type="text"
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={`${meta.label}을(를) 적어보세요`}
+          placeholder={placeholder || `${meta.label}을(를) 적어보세요`}
           style={{
             flex: 1,
             background: 'var(--surface)',
