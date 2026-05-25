@@ -46,7 +46,7 @@ export const MODES = [
     emoji: '⚠️',
     summary: '환각·편향·일관성 깨짐을 직접 유도하고 토큰 예측으로 설명',
     needsKey: 'anthropic',
-    status: 'scaffold',
+    status: 'ready',
   },
   {
     key: 'tool',
@@ -55,7 +55,7 @@ export const MODES = [
     emoji: '🛠️',
     summary: '계산기·검색·메모·날짜계산 — AI가 도구를 부르는 흐름 관찰',
     needsKey: 'anthropic',
-    status: 'scaffold',
+    status: 'ready',
   },
   {
     key: 'react',
