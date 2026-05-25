@@ -115,6 +115,11 @@ function Dashboard({ onLogout }) {
         <div className="row" style={{ gap: 10, marginBottom: 16 }}>
           <SummaryCard label="총 학생 수" value={students.length} />
           <SummaryCard label="총 시도" value={items.length} />
+          <SummaryCard
+            label="🔒 비공개 편지"
+            value={items.filter((i) => i.is_public === false || i.self_check?.privateLetter).length}
+            color="var(--warning)"
+          />
           <SummaryCard label="가린 항목" value={items.filter((i) => i.hidden_by_teacher).length} />
           <SummaryCard
             label="교사 채점됨"
@@ -167,11 +172,13 @@ function Dashboard({ onLogout }) {
   )
 }
 
-function SummaryCard({ label, value }) {
+function SummaryCard({ label, value, color }) {
   return (
     <div className="card-sm" style={{ flex: 1, textAlign: 'center' }}>
       <div className="muted small">{label}</div>
-      <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent-hover)' }}>{value}</div>
+      <div style={{ fontSize: '1.6rem', fontWeight: 800, color: color || 'var(--accent-hover)' }}>
+        {value}
+      </div>
     </div>
   )
 }
@@ -179,23 +186,85 @@ function SummaryCard({ label, value }) {
 function AttemptRow({ a, onChange }) {
   const [score, setScore] = useState(a.teacher_score ?? '')
   const [comment, setComment] = useState(a.teacher_comment ?? '')
+  const isPrivate = a.is_public === false || a.self_check?.privateLetter === true
+  const isObservation = a.self_check?.type === 'observation'
 
   return (
-    <div className="card-sm">
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontWeight: 600 }}>
+    <div
+      className="card-sm"
+      style={
+        isPrivate
+          ? {
+              borderLeft: '4px solid var(--warning)',
+              background: 'rgba(245, 158, 11, 0.04)',
+            }
+          : undefined
+      }
+    >
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+        <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
           {a.student?.student_number} {a.student?.name}
+          {isPrivate && (
+            <span
+              className="tag"
+              style={{
+                background: 'var(--warning)',
+                color: 'white',
+                fontSize: '0.7rem',
+                padding: '2px 8px',
+              }}
+              title="공개 갤러리에 노출되지 않은 비공개 제출 — 학생이 선생님께만 제출함"
+            >
+              🔒 비공개 (D-30 편지)
+            </span>
+          )}
+          {isObservation && (
+            <span
+              className="tag"
+              style={{
+                background: '#9333ea',
+                color: 'white',
+                fontSize: '0.7rem',
+                padding: '2px 8px',
+              }}
+            >
+              관찰 메모
+            </span>
+          )}
         </span>
         <span className="muted small">
           {a.session_number}차시 / {a.mode} / {new Date(a.created_at).toLocaleString()}
         </span>
       </div>
+
+      {a.self_check?.userRequest && (
+        <div
+          style={{
+            marginTop: 8,
+            padding: '8px 10px',
+            background: 'rgba(245, 158, 11, 0.12)',
+            borderLeft: '2px solid var(--warning)',
+            borderRadius: 4,
+            fontSize: '0.85rem',
+            color: 'var(--text)',
+          }}
+        >
+          <strong style={{ color: 'var(--warning)' }}>💬 학생이 더한 말:</strong>{' '}
+          {a.self_check.userRequest}
+        </div>
+      )}
+
       <div className="muted small" style={{ marginTop: 6 }}>
         <strong>P:</strong> {a.prompt.slice(0, 200)}{a.prompt.length > 200 && '...'}
       </div>
       {a.output_text && (
         <div style={{ marginTop: 4, fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
           <strong>A:</strong> {a.output_text.slice(0, 240)}{a.output_text.length > 240 && '...'}
+        </div>
+      )}
+      {a.reflection && (
+        <div style={{ marginTop: 4, fontSize: '0.8rem', color: 'var(--warning)', whiteSpace: 'pre-wrap' }}>
+          💭 {a.reflection}
         </div>
       )}
 
