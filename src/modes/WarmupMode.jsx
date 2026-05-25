@@ -160,17 +160,26 @@ export default function WarmupMode() {
           )}
         </div>
 
-        {/* ── 중앙: 4요소 빌더 ────────────────────────────────────────── */}
-        <div className="col" style={{ flex: '1 1 0', minWidth: 0, gap: 16 }}>
+        {/* ── 우측: 위→아래 과제 흐름 (① 입력 → ② 완성 프롬프트 → ③ AI 응답) ─ */}
+        <div className="col" style={{ flex: '1 1 0', minWidth: 0, gap: 20 }}>
+          {/* ① 4요소 입력 */}
           <div className="card">
-            <p className="muted small" style={{ marginBottom: 4, fontWeight: 600 }}>
-              ① 4요소를 각각 입력하고 [확인]을 누르세요
-            </p>
-            <p className="muted small" style={{ marginBottom: 14, fontSize: '0.78rem' }}>
-              4가지가 모두 확인되면 우측 [AI에게 보내기]가 활성화됩니다.
+            <div className="row" style={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
+              <p style={{ fontWeight: 700, fontSize: '1rem' }}>
+                ① 4요소를 각각 입력하고 [확인] 버튼을 누르세요
+              </p>
+              <span
+                className="small"
+                style={{ color: allConfirmed ? 'var(--success)' : 'var(--warning)', fontWeight: 600 }}
+              >
+                {VARIANT_LABELS.filter((v) => confirmed[v.key]).length}/4 확인됨
+              </span>
+            </div>
+            <p className="muted small" style={{ marginBottom: 14, fontSize: '0.8rem' }}>
+              내용을 수정하면 확인 상태가 풀려요. 4개가 모두 확인되면 아래 [AI에게 보내기]가 활성화됩니다.
             </p>
 
-            <div className="col" style={{ gap: 14 }}>
+            <div className="col" style={{ gap: 12 }}>
               {VARIANT_LABELS.map((v) => (
                 <PartInput
                   key={v.key}
@@ -185,38 +194,34 @@ export default function WarmupMode() {
               ))}
             </div>
           </div>
-        </div>
 
-        {/* ── 우측: 완성 프롬프트 + AI 보내기 ─────────────────────────── */}
-        <div className="col" style={{ flex: '0 0 380px', gap: 16 }}>
+          {/* ② 완성 프롬프트 + AI에게 보내기 */}
           <div
             className="card"
             style={{
               borderLeft: '4px solid ' + (allConfirmed ? 'var(--success)' : 'var(--warning)'),
             }}
           >
-            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
-              <span className="muted small" style={{ fontWeight: 600 }}>
-                ② 완성 프롬프트
-              </span>
+            <div className="row" style={{ alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+              <p style={{ fontWeight: 700, fontSize: '1rem' }}>② 완성 프롬프트</p>
               <span
-                className="small"
-                style={{ color: allConfirmed ? 'var(--success)' : 'var(--warning)' }}
+                className="small muted"
+                style={{ fontSize: '0.8rem' }}
               >
-                {VARIANT_LABELS.filter((v) => confirmed[v.key]).length}/4 확인됨
+                4요소가 합쳐져 AI에게 보낼 한 덩어리
               </span>
             </div>
 
             <pre
               style={{
                 background: 'var(--bg)',
-                padding: 10,
+                padding: '12px 14px',
                 borderRadius: 'var(--radius)',
-                fontSize: '0.82rem',
+                fontSize: '0.9rem',
+                lineHeight: 1.7,
                 whiteSpace: 'pre-wrap',
                 fontFamily: 'inherit',
-                color: 'var(--text-muted)',
-                minHeight: 140,
+                color: 'var(--text)',
               }}
             >
               {composedPrompt}
@@ -226,29 +231,43 @@ export default function WarmupMode() {
               className="btn btn-primary"
               onClick={handleRun}
               disabled={loading || !allConfirmed}
-              style={{ width: '100%', marginTop: 12 }}
+              style={{ width: '100%', marginTop: 14, padding: '14px', fontSize: '1rem' }}
             >
               {loading ? '생성 중...' : '🚀 AI에게 보내기'}
             </button>
             {!allConfirmed && (
               <p className="muted small" style={{ marginTop: 8, textAlign: 'center' }}>
-                4요소를 모두 확인하면 보낼 수 있어요.
+                ① 영역의 4요소를 모두 확인하면 활성화됩니다.
               </p>
             )}
             {error && <p className="error" style={{ marginTop: 10 }}>{error}</p>}
           </div>
 
+          {/* ③ AI 응답 + 관찰 메모 + 등록 */}
           {output && (
-            <div className="card">
-              <p className="muted small" style={{ marginBottom: 6 }}>🤖 AI 응답</p>
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.95rem' }}>{output}</div>
+            <div className="card" style={{ borderLeft: '4px solid var(--accent)' }}>
+              <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 10 }}>
+                ③ AI 응답
+              </p>
+              <div
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  fontSize: '1rem',
+                  lineHeight: 1.8,
+                  padding: '14px 16px',
+                  background: 'var(--bg)',
+                  borderRadius: 'var(--radius)',
+                }}
+              >
+                {output}
+              </div>
 
-              <label className="field" style={{ marginTop: 14 }}>
-                <span>관찰 메모 (선택)</span>
+              <label className="field" style={{ marginTop: 16 }}>
+                <span>관찰 메모 (선택) — 이번에는 어떤 점이 잘 됐나요?</span>
                 <textarea
                   value={reflection}
                   onChange={(e) => setReflection(e.target.value)}
-                  rows={2}
+                  rows={3}
                   placeholder="예) 역할을 친구로 바꿨더니 말투가 자연스러워졌다"
                 />
               </label>
