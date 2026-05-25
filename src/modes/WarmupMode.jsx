@@ -274,8 +274,9 @@ export default function WarmupMode() {
         challenge_id: challenge.id,
         prompt: exp.prompt,
         output_text: exp.response,
-        self_check: { ...parts, isBaseline: false, userRequest: exp.userRequest },
+        self_check: { ...parts, isBaseline: false, userRequest: exp.userRequest, privateLetter: true },
         reflection: exp.userRequest,
+        is_public: false, // 공개 갤러리 제외 — 교사 대시보드에서만 보임
       })
       setAddExps(addExps.map((e) => (e.id === exp.id ? { ...e, registered: true, rowId: row.id } : e)))
       setHistory([row, ...history])
@@ -648,11 +649,25 @@ export default function WarmupMode() {
           {output && challenge.hasAddRequest && (
             <div className="card" style={{ borderLeft: '4px solid #be123c' }}>
               <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>
-                ⑥ 내가 하고 싶은 말 더하기
+                ⑥ 내가 하고 싶은 말 더하기 <span style={{ fontSize: '0.7rem', color: 'var(--warning)', marginLeft: 6 }}>🔒 비공개</span>
               </p>
               <p className="muted small" style={{ marginBottom: 14, fontSize: '0.88rem', lineHeight: 1.7 }}>
                 마지막 단계 — 내가 미래의 나(친구)에게 진짜로 전하고 싶은 한마디를 직접 적어보세요.
                 추억, 다짐, 작은 표현 무엇이든. AI가 그 마음을 편지 안에 자연스럽게 녹여서 다시 써줍니다.
+              </p>
+              <p
+                className="small"
+                style={{
+                  padding: '8px 10px',
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  color: 'var(--warning)',
+                  borderRadius: 'var(--radius)',
+                  marginBottom: 12,
+                  fontSize: '0.82rem',
+                }}
+              >
+                🔒 이 편지는 <strong>공개 갤러리에 올라가지 않고 선생님만 볼 수 있어요.</strong> D-30에 본인에게 전달될
+                진짜 편지이므로 솔직하게 적어도 괜찮습니다.
               </p>
               <textarea
                 value={addRequest}
@@ -740,7 +755,7 @@ export default function WarmupMode() {
                     disabled={exp.registered}
                     style={{ width: '100%', marginTop: 10 }}
                   >
-                    {exp.registered ? '✓ 등록됨 — D-30에 전달됩니다' : '📌 이 편지 갤러리에 등록'}
+                    {exp.registered ? '✓ 선생님께 제출 완료 — D-30에 전달됩니다' : '📤 이 편지 선생님께만 제출'}
                   </button>
                 </div>
               ))}
