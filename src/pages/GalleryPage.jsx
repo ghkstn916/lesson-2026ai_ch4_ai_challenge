@@ -1,4 +1,4 @@
-import { Component, useEffect, useMemo, useState } from 'react'
+import { Component, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchGallery } from '../lib/supabase.js'
 import { MODES, MODE_BY_KEY } from '../data/modes.js'
@@ -36,6 +36,59 @@ class CardErrorBoundary extends Component {
 }
 
 const safeStr = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v))
+
+// 화면에 보일 때만 VPython iframe을 생성한다.
+// 한 그룹에 작품이 수십 개면 모든 iframe이 동시에 외부 CDN(jQuery·glow.js)을
+// 불러와 브라우저의 동시 연결 한도(~6)에 막혀 일부가 영영 안 뜨는 문제 해결.
+function LazyVPython({ code }) {
+  const ref = useRef(null)
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    if (!ref.current || visible) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            setVisible(true)
+            io.disconnect()
+            break
+          }
+        }
+      },
+      { rootMargin: '300px' }
+    )
+    io.observe(ref.current)
+    return () => io.disconnect()
+  }, [visible])
+  return (
+    <div ref={ref} style={{ marginTop: 10 }}>
+      {visible ? (
+        <VPythonRunner
+          code={code}
+          height="180px"
+          showRotateToggle={false}
+          defaultRotate={false}
+        />
+      ) : (
+        <div
+          style={{
+            height: '180px',
+            background: '#1a1a2e',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--text-muted)',
+            fontSize: '0.85rem',
+          }}
+        >
+          📦 스크롤하면 3D 장면이 표시돼요
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function GalleryPage() {
   const [mode, setMode] = useState('warmup')
@@ -272,16 +325,7 @@ function GalleryCard({ a, mode }) {
         </div>
       )}
 
-      {mode === 'visual' && outputText && (
-        <div style={{ marginTop: 10 }}>
-          <VPythonRunner
-            code={outputText}
-            height="180px"
-            showRotateToggle={false}
-            defaultRotate={false}
-          />
-        </div>
-      )}
+      {mode === 'visual' && outputText && <LazyVPython code={outputText} />}
 
       {mode === 'image' && a.output_blob_url && (
         <img

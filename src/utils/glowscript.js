@@ -13,6 +13,13 @@
 export function buildGlowScriptHTML(code, options = {}) {
   const { autoRotate = false } = options
 
+  // 학생/AI 코드 안에 "</script>"나 "<!--" 같은 문자열이 그대로 들어가면
+  // 외부 HTML parser가 <script> 블록을 조기 종료시켜 iframe 전체가 깨진다.
+  // JSON.stringify로 문자열 리터럴화한 뒤 "</" → "<\/" 로 이스케이프.
+  const safeCodeLiteral = JSON.stringify(code ?? '')
+    .replace(/<\//g, '<\\/')
+    .replace(/<!--/g, '<\\!--')
+
   const controlScript = `
 try {
     (function(){
@@ -138,7 +145,7 @@ function __main__() {
     scene.height = window.innerHeight;
     // 학생/AI 코드를 eval로 감싸 syntax error도 캐치 → iframe 자체가 깨지지 않게
     try {
-        eval(${JSON.stringify(code)});
+        eval(${safeCodeLiteral});
     } catch (e) {
         console.error('[VPython] code error:', e);
         try {
