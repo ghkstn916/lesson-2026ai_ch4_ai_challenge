@@ -171,6 +171,42 @@ export function createBlobURL(code, options) {
 }
 
 /**
+ * GlowScript 로딩 큐
+ * 갤러리에서 한 화면에 보이는 VPython iframe이 동시에 외부 CDN(jQuery·glow.js)을
+ * 요청하면 브라우저 동시 연결 한도(~6)를 넘어 일부 iframe이 영영 로드되지 못한다.
+ * 한 번에 MAX 개만 시작하고, 시작 간격도 최소 INTERVAL ms 유지.
+ * 첫 카드들이 CDN 캐시를 채우면 이후 카드들은 cache hit으로 빨라진다.
+ */
+const _glowQueue = []
+let _activeLoads = 0
+let _lastStartAt = 0
+const _MAX_CONCURRENT = 2
+const _MIN_INTERVAL_MS = 350
+const _LOAD_SLOT_MS = 1500 // 한 카드가 슬롯을 점유하는 시간(추정)
+
+function _pumpGlowQueue() {
+  while (_activeLoads < _MAX_CONCURRENT && _glowQueue.length > 0) {
+    const now = Date.now()
+    const delay = Math.max(0, _lastStartAt + _MIN_INTERVAL_MS - now)
+    _lastStartAt = now + delay
+    const job = _glowQueue.shift()
+    _activeLoads++
+    setTimeout(() => {
+      try { job() } catch (_) {}
+      setTimeout(() => {
+        _activeLoads--
+        _pumpGlowQueue()
+      }, _LOAD_SLOT_MS)
+    }, delay)
+  }
+}
+
+export function scheduleGlowScriptLoad(job) {
+  _glowQueue.push(job)
+  _pumpGlowQueue()
+}
+
+/**
  * 기존 Blob URL 해제 (메모리 누수 방지)
  */
 export function revokeBlobURL(url) {

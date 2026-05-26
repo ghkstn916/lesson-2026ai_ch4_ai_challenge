@@ -4,6 +4,7 @@ import { fetchGallery } from '../lib/supabase.js'
 import { MODES, MODE_BY_KEY } from '../data/modes.js'
 import { CHALLENGE_INDEX, challengeIdsForMode, challengeMeta } from '../data/challenges-index.js'
 import VPythonRunner from '../components/shared/VPythonRunner.jsx'
+import { scheduleGlowScriptLoad } from '../utils/glowscript.js'
 import { VARIANT_LABELS } from '../data/challenges-warmup.js'
 
 // 한 카드가 throw해도 갤러리 페이지 전체가 흰 화면이 되지 않도록 격리
@@ -42,14 +43,17 @@ const safeStr = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v))
 // 불러와 브라우저의 동시 연결 한도(~6)에 막혀 일부가 영영 안 뜨는 문제 해결.
 function LazyVPython({ code }) {
   const ref = useRef(null)
-  const [visible, setVisible] = useState(false)
+  const [queued, setQueued] = useState(false) // viewport에 들어와 큐 등록됨
+  const [ready, setReady] = useState(false)   // 큐에서 차례를 받아 iframe 생성 가능
+
+  // viewport 감지 → 큐에 등록
   useEffect(() => {
-    if (!ref.current || visible) return
+    if (!ref.current || queued) return
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
           if (e.isIntersecting) {
-            setVisible(true)
+            setQueued(true)
             io.disconnect()
             break
           }
@@ -59,10 +63,21 @@ function LazyVPython({ code }) {
     )
     io.observe(ref.current)
     return () => io.disconnect()
-  }, [visible])
+  }, [queued])
+
+  // 큐 등록되면 차례 기다렸다가 ready=true
+  useEffect(() => {
+    if (!queued || ready) return
+    let cancelled = false
+    scheduleGlowScriptLoad(() => {
+      if (!cancelled) setReady(true)
+    })
+    return () => { cancelled = true }
+  }, [queued, ready])
+
   return (
     <div ref={ref} style={{ marginTop: 10 }}>
-      {visible ? (
+      {ready ? (
         <VPythonRunner
           code={code}
           height="180px"
@@ -83,7 +98,7 @@ function LazyVPython({ code }) {
             fontSize: '0.85rem',
           }}
         >
-          📦 스크롤하면 3D 장면이 표시돼요
+          {queued ? '⏳ 로딩 대기 중…' : '📦 스크롤하면 3D 장면이 표시돼요'}
         </div>
       )}
     </div>
