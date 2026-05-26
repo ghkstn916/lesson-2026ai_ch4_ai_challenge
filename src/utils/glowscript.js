@@ -118,12 +118,25 @@ try {
 <meta charset="utf-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; overflow: hidden; user-select: none; }
+  /* GlowScript canvas가 그려지기 전·CDN 로드 중 흰 배경이 노출되지 않도록 어두운 톤 고정 */
+  html, body { width: 100%; height: 100%; overflow: hidden; user-select: none; background: #1a1a2e; color: #ccc; }
   .glowscript { width: 100% !important; padding: 0 !important; margin: 0 !important; }
   div > canvas { display: block; cursor: grab; }
+  #__loading {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: #88a; font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 0.85rem;
+    background: #1a1a2e; z-index: 9999; pointer-events: none;
+  }
+  #__loading.hide { display: none; }
+  #__err { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    padding: 16px; text-align: center; background: #1a1a2e; color: #ff8888;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 0.85rem; z-index: 9999; }
+  #__err.show { display: flex; }
 </style>
 </head>
 <body>
+<div id="__loading">⏳ 3D 장면을 불러오는 중…</div>
+<div id="__err">⚠ 라이브러리를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</div>
 <div id="glowscript" class="glowscript">
 <link type="text/css" href="https://www.glowscript.org/css/redmond/2.1/jquery-ui.custom.css" rel="stylesheet" />
 <link type="text/css" href="https://www.glowscript.org/css/ide.css" rel="stylesheet" />
@@ -136,10 +149,21 @@ try {
 try { window.alert = function(){}; } catch (e) {}
 try { window.confirm = function(){ return false; }; } catch (e) {}
 try { window.prompt = function(){ return null; }; } catch (e) {}
+// CDN 로드 실패 감시: 8초 안에 canvas() 정의가 없으면 에러 안내
+setTimeout(function(){
+  if (typeof canvas !== 'function' || typeof vec !== 'function') {
+    var el = document.getElementById('__err');
+    if (el) el.classList.add('show');
+    var ld = document.getElementById('__loading');
+    if (ld) ld.classList.add('hide');
+  }
+}, 8000);
 </script>
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 ;(function() {
 function __main__() {
+    var __ld = document.getElementById('__loading');
+    if (__ld) __ld.classList.add('hide');
     var scene = canvas();
     scene.width = window.innerWidth;
     scene.height = window.innerHeight;
