@@ -65,14 +65,28 @@ export async function generateGlowscriptCode(prompt) {
     messages: [
       {
         role: 'user',
-        content: `glow.js 3D 코드 생성기. 설명을 코드로 변환하라.
-반드시 코드만 출력. 설명/안내/질문 절대 금지.
+        content: `glow.js (GlowScript 3.2) 3D 코드 생성기. 설명을 코드로 변환하라.
+반드시 코드만 출력. 설명/안내/질문 절대 금지. 마크다운/코드펜스 금지.
 아무리 짧은 설명이라도 최선을 다해 코드로 변환하라.
 
 API: sphere({pos:vec(x,y,z), radius:r, color:color.red})
-vec(x,y,z), color.red/blue/green/white/black/yellow/orange/cyan/magenta
-sphere, box({size:vec(w,h,d)}), cylinder({axis:vec()}), cone, arrow, pyramid, ring, ellipsoid
-scene/canvas 선언 불필요.
+사용 가능 도형: sphere, box({size:vec(w,h,d)}), cylinder({axis:vec()}), cone({axis:vec()}), arrow, ring({axis:vec(), thickness:t}), ellipsoid({size:vec()})
+
+⚠ 색 표현 규칙 — 매우 중요:
+- 정의된 color 상수만 사용 가능: color.red, color.blue, color.green, color.white, color.black, color.yellow, color.orange, color.cyan, color.magenta, color.purple
+- color.brown / color.gray / color.pink / color.gold 같은 건 GlowScript에 없다 → 절대 사용 금지. ReferenceError가 난다.
+- 그 외 색은 반드시 vec(r,g,b)로 표현 (r,g,b는 0~1). 예시:
+  · 갈색 = vec(0.55, 0.27, 0.07)
+  · 진한 갈색 = vec(0.4, 0.2, 0.05)
+  · 회색 = vec(0.5, 0.5, 0.5)
+  · 분홍 = vec(1, 0.6, 0.7)
+  · 하늘색 = vec(0.5, 0.8, 1)
+  · 살구색 = vec(1, 0.8, 0.6)
+
+기타 규칙:
+- scene/canvas 선언 불필요.
+- 절대로 alert/prompt/confirm/print/console.log 호출하지 말 것.
+- import / from / def 같은 Python 문법 금지. 순수 JavaScript만.
 
 설명: ${prompt}`,
       },
