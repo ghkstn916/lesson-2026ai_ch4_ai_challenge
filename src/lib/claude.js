@@ -94,9 +94,15 @@ export async function evaluateVisualPrompt({ prompt, generatedCode, targetCode }
         role: 'user',
         content: `3D 장면 프롬프트 평가.
 학생은 [목표 예시 그림]을 눈으로 보고, AI에게 설명해서 그 그림과 비슷한 장면을 만들려고 한다.
-평가 목표: AI가 만든 결과가 예시 그림과 얼마나 비슷한가.
 
-채점 기준 (예시 그림과의 시각적 유사도 중심):
+⚠ score(0~100) 채점 원칙 — 반드시 지켜라:
+- score는 오직 [목표 코드]가 그리는 장면과 [AI가 생성한 코드]가 그리는 장면의 시각적 유사도만으로 결정한다.
+- [학생 프롬프트]의 문장이 길고 구체적이고 잘 쓰여 있어도, 생성된 코드가 목표와 안 비슷하면 점수는 낮다.
+- 반대로 학생 프롬프트가 짧고 단순해도 생성된 코드가 목표와 충분히 비슷하면 점수는 높다.
+- "잘 쓴 프롬프트인지"가 아니라 "결과가 예시 그림처럼 보이는지"만 본다.
+- 두 코드가 그릴 장면이 시각적으로 거의 다르면 score는 30점 이하로 낮춰라.
+
+score 채점 기준 (목표 그림과의 시각적 유사도):
 - 객체 종류 일치 (sphere/box/cylinder 등) → 매우 중요 (30%)
 - 색상 일치 → 중요 (25%)
 - 객체 수 일치 → 중요 (20%)
@@ -105,17 +111,20 @@ export async function evaluateVisualPrompt({ prompt, generatedCode, targetCode }
 
 감점하지 말 것: 절대 수치 차이 (좌표·크기 절댓값 등). 예시 그림과 "비슷하게" 보이면 충분.
 
-[목표 코드]
+ct_scores는 학생 프롬프트의 사고 과정을 보고 매겨도 된다(분해·패턴·추상화·알고리즘).
+단, score는 위 원칙에 따라 코드 비교로만 결정.
+
+[목표 코드 — 학생이 보고 묘사한 그림]
 ${targetCode}
 
-[학생 프롬프트]
+[학생 프롬프트 — score에 영향 주지 말 것]
 ${prompt}
 
-[AI가 생성한 코드]
+[AI가 생성한 코드 — 이것과 위 목표 코드의 유사도로 score 결정]
 ${generatedCode}
 
 JSON만 응답:
-{"score":0~100,"ct_scores":{"abstract":0~25,"pattern":0~25,"decomp":0~25,"algorithm":0~25},"feedback":"2줄 피드백","improvements":["개선할 점"]}`,
+{"score":0~100,"ct_scores":{"abstract":0~25,"pattern":0~25,"decomp":0~25,"algorithm":0~25},"feedback":"2줄 피드백 — 목표 그림과 어떤 점이 같고 어떤 점이 다른지","improvements":["개선할 점"]}`,
       },
     ],
   })
