@@ -125,7 +125,12 @@ score 세부 기준 — 학생 프롬프트가 목표 그림의 다음 요소들
 
 감점하지 말 것: 절대 수치(좌표·크기 절댓값 등). 학생이 "탁자 다리 4개", "위에 빨간 사과 하나" 처럼 상대적·시각적 표현을 쓰면 충분.
 
-ct_scores는 학생 프롬프트의 사고 과정을 본다(분해·패턴·추상화·알고리즘).
+⚠ 점수 일관성 규칙 (중요):
+- ct_scores 4개 항목(추상화·패턴인식·분해·알고리즘)은 각각 0~25점.
+- score(0~100)는 반드시 ct_scores 4개 항목의 합과 같아야 한다.
+- 즉 score = abstract + pattern + decomp + algorithm.
+- ct_scores를 위 5가지 세부 기준(객체·색·수·위치·크기)이 프롬프트에 얼마나 잘 반영됐는지로 매기고, 그 합을 그대로 score에 넣어라.
+- 두 값이 어긋나면 안 된다.
 
 [목표 코드 — 화면 왼쪽에 학생이 보고 묘사해야 하는 그림]
 ${targetCode}
@@ -144,7 +149,23 @@ JSON만 응답:
 
   const m = text.match(/\{[\s\S]*\}/)
   if (!m) throw new Error('평가 JSON 파싱 실패')
-  return JSON.parse(m[0])
+  const parsed = JSON.parse(m[0])
+
+  // score와 ct_scores 일관성 강제: score = ct 4개 항목 합 (0~100 클램프)
+  const ct = parsed.ct_scores || {}
+  const clamp = (v) => {
+    const n = Number(v)
+    if (!Number.isFinite(n)) return 0
+    return Math.max(0, Math.min(25, Math.round(n)))
+  }
+  const abstract = clamp(ct.abstract)
+  const pattern = clamp(ct.pattern)
+  const decomp = clamp(ct.decomp)
+  const algorithm = clamp(ct.algorithm)
+  parsed.ct_scores = { abstract, pattern, decomp, algorithm }
+  parsed.score = abstract + pattern + decomp + algorithm
+
+  return parsed
 }
 
 /**
