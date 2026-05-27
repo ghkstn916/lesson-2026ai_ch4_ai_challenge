@@ -181,10 +181,18 @@ JSON만 응답:
  * OpenAI gpt-image-2 호출 (3차시). base64 이미지 반환.
  */
 export async function generateImage({ prompt, size = '1024x1024' }) {
+  // quality: 'medium' + jpeg → 생성 ~15~30초 / 응답 0.5~1MB.
+  // (quality:'auto'/'high'는 복잡한 프롬프트에서 1~2분 걸려 Vercel 60s 타임아웃)
   const res = await fetch(OPENAI_IMAGE_URL, {
     method: 'POST',
     headers: openaiHeaders(),
-    body: JSON.stringify({ prompt, size, n: 1 }),
+    body: JSON.stringify({
+      prompt,
+      size,
+      n: 1,
+      quality: 'medium',
+      output_format: 'jpeg',
+    }),
   })
 
   // Vercel 함수 타임아웃 등에서 plain-text 오류가 올 수 있어 안전하게 파싱

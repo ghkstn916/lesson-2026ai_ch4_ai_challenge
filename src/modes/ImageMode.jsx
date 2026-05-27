@@ -8,7 +8,7 @@ import { insertAttempt, fetchMyAttempts, uploadBlob } from '../lib/supabase.js'
 
 const SOFT_LIMIT = 3
 
-function base64ToBlob(b64, type = 'image/png') {
+function base64ToBlob(b64, type = 'image/jpeg') {
   const bin = atob(b64)
   const arr = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
@@ -53,7 +53,7 @@ export default function ImageMode() {
     try {
       const r = await generateImage({ prompt, size: '1024x1024' })
       if (r.b64) {
-        setImageUrl(`data:image/png;base64,${r.b64}`)
+        setImageUrl(`data:image/jpeg;base64,${r.b64}`)
       } else if (r.url) {
         setImageUrl(r.url)
       }
@@ -74,7 +74,7 @@ export default function ImageMode() {
       if (imageUrl.startsWith('data:image')) {
         const b64 = imageUrl.split(',')[1]
         const blob = base64ToBlob(b64)
-        publicUrl = await uploadBlob({ studentId, mode: 'image', file: blob, ext: 'png' })
+        publicUrl = await uploadBlob({ studentId, mode: 'image', file: blob, ext: 'jpg' })
       }
       const row = await insertAttempt({
         student_id: studentId,

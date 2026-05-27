@@ -3,10 +3,9 @@
 //
 // ⚠ Edge 런타임은 사용 금지: 이미지 생성이 25초를 넘기면 Vercel이 plain-text
 // 오류("An error occurred...")를 반환해서 클라이언트의 res.json() 파싱이 깨진다.
-// Node 런타임 + maxDuration 60s 로 해결.
+// Node 런타임 + maxDuration 60s 로 해결 (runtime은 미지정이 곧 Node 기본).
 
 export const config = {
-  runtime: 'nodejs',
   maxDuration: 60,
 }
 
