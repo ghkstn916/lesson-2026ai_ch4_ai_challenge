@@ -1,4 +1,4 @@
-// Vercel 서버리스 proxy for OpenAI gpt-image-1 (3차시).
+// Vercel 서버리스 proxy for OpenAI gpt-image-2 (3차시).
 // 학생이 헤더 X-OpenAI-Key로 본인 키를 직접 보낸다.
 //
 // ⚠ Edge 런타임은 사용 금지: 이미지 생성이 25초를 넘기면 Vercel이 plain-text
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
         authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model: 'gpt-image-1',
+        model: 'gpt-image-2',
         ...body,
       }),
     })
