@@ -5,10 +5,10 @@
 // 오류("An error occurred...")를 반환해서 클라이언트의 res.json() 파싱이 깨진다.
 // Node 런타임 + maxDuration 60s 로 해결 (runtime은 미지정이 곧 Node 기본).
 
-// runtime을 명시적 버전으로 박는다. Vercel은 'nodejs' 같은 불완전 값은 무시하고
-// 이전 Edge 메타데이터로 폴백하는 사례가 있어 25s 한계가 계속 적용됨.
+// Vercel CLI 빌드 검증 결과: runtime 허용값은 "edge" | "experimental-edge" | "nodejs"
+// 'nodejs20.x' 같은 버전 접미 형태는 deploy_failed 에러로 빌드를 깨뜨림.
 export const config = {
-  runtime: 'nodejs20.x',
+  runtime: 'nodejs',
   maxDuration: 60,
 }
 
