@@ -1,40 +1,49 @@
-// Vercel 서버리스 proxy for OpenAI gpt-image-2 (3차시).
+// Vercel 서버리스 proxy for OpenAI gpt-image-1 (3차시).
 // 학생이 헤더 X-OpenAI-Key로 본인 키를 직접 보낸다.
+//
+// ⚠ Edge 런타임은 사용 금지: 이미지 생성이 25초를 넘기면 Vercel이 plain-text
+// 오류("An error occurred...")를 반환해서 클라이언트의 res.json() 파싱이 깨진다.
+// Node 런타임 + maxDuration 60s 로 해결.
 
-export const config = { runtime: 'edge' }
+export const config = {
+  runtime: 'nodejs',
+  maxDuration: 60,
+}
 
-export default async function handler(req) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'POST only' }), { status: 405 })
+    res.status(405).json({ error: 'POST only' })
+    return
   }
 
-  const key = req.headers.get('x-openai-key') || process.env.OPENAI_API_KEY
+  const key = req.headers['x-openai-key'] || process.env.OPENAI_API_KEY
   if (!key) {
-    return new Response(JSON.stringify({ error: 'OpenAI API 키가 필요합니다.' }), { status: 400 })
+    res.status(400).json({ error: 'OpenAI API 키가 필요합니다.' })
+    return
   }
 
-  let body
+  const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
+
+  let upstream
   try {
-    body = await req.json()
-  } catch {
-    return new Response(JSON.stringify({ error: 'invalid JSON' }), { status: 400 })
+    upstream = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-image-1',
+        ...body,
+      }),
+    })
+  } catch (e) {
+    res.status(502).json({ error: { message: `upstream fetch 실패: ${e.message}` } })
+    return
   }
-
-  const upstream = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-image-2',
-      ...body,
-    }),
-  })
 
   const text = await upstream.text()
-  return new Response(text, {
-    status: upstream.status,
-    headers: { 'content-type': 'application/json' },
-  })
+  res.status(upstream.status)
+  res.setHeader('content-type', 'application/json')
+  res.send(text)
 }

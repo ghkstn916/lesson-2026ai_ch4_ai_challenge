@@ -186,7 +186,17 @@ export async function generateImage({ prompt, size = '1024x1024' }) {
     headers: openaiHeaders(),
     body: JSON.stringify({ prompt, size, n: 1 }),
   })
-  const raw = await res.json()
+
+  // Vercel 함수 타임아웃 등에서 plain-text 오류가 올 수 있어 안전하게 파싱
+  const bodyText = await res.text()
+  let raw
+  try {
+    raw = JSON.parse(bodyText)
+  } catch {
+    throw new Error(
+      `이미지 생성 서버 오류 (HTTP ${res.status}): ${bodyText.slice(0, 200)}`,
+    )
+  }
   if (!res.ok) throw new Error(raw.error?.message || raw.error || 'OpenAI 호출 실패')
 
   const first = raw.data?.[0]
