@@ -181,8 +181,9 @@ JSON만 응답:
  * OpenAI gpt-image-2 호출 (3차시). base64 이미지 반환.
  */
 export async function generateImage({ prompt, size = '1024x1024' }) {
-  // quality: 'medium' + jpeg → 생성 ~15~30초 / 응답 0.5~1MB.
-  // (quality:'auto'/'high'는 복잡한 프롬프트에서 1~2분 걸려 Vercel 60s 타임아웃)
+  // quality: 'low' + jpeg → 생성 ~5~15초 / 응답 ~200~500KB.
+  // (medium/auto/high는 "교실 30명" 같은 다객체 장면에서 60초 초과 → Vercel 한계)
+  // 학습 목적은 프롬프트 5요소 작성 연습이라 속도/안정성 우선.
   const res = await fetch(OPENAI_IMAGE_URL, {
     method: 'POST',
     headers: openaiHeaders(),
@@ -190,7 +191,7 @@ export async function generateImage({ prompt, size = '1024x1024' }) {
       prompt,
       size,
       n: 1,
-      quality: 'medium',
+      quality: 'low',
       output_format: 'jpeg',
     }),
   })
