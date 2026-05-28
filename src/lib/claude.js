@@ -178,15 +178,18 @@ JSON만 응답:
 }
 
 /**
- * OpenAI gpt-image-2 호출 (3차시). base64 이미지 반환.
+ * OpenAI gpt-image-2 호출 (3차시) — SSE 스트리밍.
+ * Edge proxy가 stream:true + partial_images:1로 강제해, 첫 partial이 빠르게 도착하면
+ * Vercel Edge가 죽지 않고 30분까지 스트리밍을 유지한다.
+ * @param {object} opts
+ * @param {string} opts.prompt
+ * @param {string} [opts.size]
+ * @param {(b64: string) => void} [opts.onPartial] partial 도착 시점 콜백(미리보기용)
  */
-export async function generateImage({ prompt, size = '1024x1024' }) {
-  // quality: 'low' + jpeg → 생성 ~5~15초 / 응답 ~200~500KB.
-  // (medium/auto/high는 "교실 30명" 같은 다객체 장면에서 60초 초과 → Vercel 한계)
-  // 학습 목적은 프롬프트 5요소 작성 연습이라 속도/안정성 우선.
+export async function generateImage({ prompt, size = '1024x1024', onPartial }) {
   const res = await fetch(OPENAI_IMAGE_URL, {
     method: 'POST',
-    headers: openaiHeaders(),
+    headers: { ...openaiHeaders(), accept: 'text/event-stream' },
     body: JSON.stringify({
       prompt,
       size,
@@ -196,20 +199,63 @@ export async function generateImage({ prompt, size = '1024x1024' }) {
     }),
   })
 
-  // Vercel 함수 타임아웃 등에서 plain-text 오류가 올 수 있어 안전하게 파싱
-  const bodyText = await res.text()
-  let raw
-  try {
-    raw = JSON.parse(bodyText)
-  } catch {
-    throw new Error(
-      `이미지 생성 서버 오류 (HTTP ${res.status}): ${bodyText.slice(0, 200)}`,
-    )
+  // 에러는 SSE가 아니라 JSON/텍스트로 옴 → 안전 파싱
+  if (!res.ok) {
+    const text = await res.text()
+    let msg = text.slice(0, 200)
+    try {
+      const j = JSON.parse(text)
+      msg = j.error?.message || j.error || msg
+    } catch { /* plain text 그대로 */ }
+    throw new Error(`이미지 생성 서버 오류 (HTTP ${res.status}): ${msg}`)
   }
-  if (!res.ok) throw new Error(raw.error?.message || raw.error || 'OpenAI 호출 실패')
 
-  const first = raw.data?.[0]
-  if (first?.b64_json) return { b64: first.b64_json, raw }
-  if (first?.url) return { url: first.url, raw }
-  throw new Error('이미지 응답 형식을 알 수 없음')
+  // SSE 파싱: "data: <json>" 라인을 \n\n 단위로 끊어 읽는다
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let finalB64 = null
+  let lastPartialB64 = null
+  let raw = null
+  let streamError = null
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    let sep
+    while ((sep = buffer.indexOf('\n\n')) !== -1) {
+      const evChunk = buffer.slice(0, sep)
+      buffer = buffer.slice(sep + 2)
+
+      let dataLine = null
+      for (const line of evChunk.split('\n')) {
+        if (line.startsWith('data: ')) dataLine = line.slice(6)
+      }
+      if (!dataLine || dataLine === '[DONE]') continue
+
+      let parsed
+      try {
+        parsed = JSON.parse(dataLine)
+      } catch { continue }
+
+      if (parsed.type === 'image_generation.partial_image' && parsed.b64_json) {
+        lastPartialB64 = parsed.b64_json
+        if (onPartial) {
+          try { onPartial(parsed.b64_json) } catch { /* UI 콜백 실패 무시 */ }
+        }
+      } else if (parsed.type === 'image_generation.completed' && parsed.b64_json) {
+        finalB64 = parsed.b64_json
+        raw = parsed
+      } else if (parsed.type === 'error') {
+        streamError = parsed.error?.message || '이미지 생성 실패'
+      }
+    }
+  }
+
+  if (streamError) throw new Error(streamError)
+  const b64 = finalB64 || lastPartialB64
+  if (b64) return { b64, raw }
+  throw new Error('이미지 응답 형식을 알 수 없음 (스트림 비어있음)')
 }

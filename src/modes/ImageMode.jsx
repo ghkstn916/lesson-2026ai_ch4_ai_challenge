@@ -51,7 +51,12 @@ export default function ImageMode() {
     setLoading(true)
     setImageUrl('')
     try {
-      const r = await generateImage({ prompt, size: '1024x1024' })
+      const r = await generateImage({
+        prompt,
+        size: '1024x1024',
+        // 스트리밍 중 첫 partial(약 3~6초)이 도착하면 미리 화면에 띄운다
+        onPartial: (b64) => setImageUrl(`data:image/jpeg;base64,${b64}`),
+      })
       if (r.b64) {
         setImageUrl(`data:image/jpeg;base64,${r.b64}`)
       } else if (r.url) {
