@@ -1,6 +1,7 @@
 node_modules
 dist
 .vercel
+supabase/
 .env
 .env.local
 *.log

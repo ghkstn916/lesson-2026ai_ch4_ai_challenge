@@ -52,15 +52,7 @@ create table if not exists ai8_project_plans (
   created_at timestamptz default now()
 );
 
--- ── discussion_groups: 6차시 토론 조 배정 ──────────────────────────────────────
-create table if not exists ai8_discussion_groups (
-  id bigint generated always as identity primary key,
-  session_id text not null,
-  group_number int not null,
-  member_student_ids bigint[] not null,
-  representative_id bigint,
-  created_at timestamptz default now()
-);
+-- (구 discussion_groups: 조 배정 — 6차시를 학급 전체 갤러리 + 공개 토론으로 운영하므로 제거)
 
 -- ── gallery_comments: 6차시 갤러리 코멘트 ──────────────────────────────────────
 create table if not exists ai8_gallery_comments (
@@ -75,20 +67,20 @@ create table if not exists ai8_gallery_comments (
 alter table ai8_students enable row level security;
 alter table ai8_attempts enable row level security;
 alter table ai8_project_plans enable row level security;
-alter table ai8_discussion_groups enable row level security;
 alter table ai8_gallery_comments enable row level security;
 
 drop policy if exists "public_all" on ai8_students;
 drop policy if exists "public_all" on ai8_attempts;
 drop policy if exists "public_all" on ai8_project_plans;
-drop policy if exists "public_all" on ai8_discussion_groups;
 drop policy if exists "public_all" on ai8_gallery_comments;
 
 create policy "public_all" on ai8_students for all using (true) with check (true);
 create policy "public_all" on ai8_attempts for all using (true) with check (true);
 create policy "public_all" on ai8_project_plans for all using (true) with check (true);
-create policy "public_all" on ai8_discussion_groups for all using (true) with check (true);
 create policy "public_all" on ai8_gallery_comments for all using (true) with check (true);
+
+-- 구 조 배정 테이블 정리 (있으면 제거)
+drop table if exists ai8_discussion_groups cascade;
 
 -- ── Storage 버킷 (SQL로 직접 생성) ─────────────────────────────────────────────
 -- 버킷 이름: ai8-gallery (다른 수업과 겹치지 않도록 prefix)

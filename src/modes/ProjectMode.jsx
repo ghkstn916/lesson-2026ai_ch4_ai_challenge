@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import StudentLayout from '../components/StudentLayout.jsx'
 import ModeIntro from '../components/ModeIntro.jsx'
 import useStudentStore from '../store/studentStore.js'
@@ -17,16 +18,30 @@ import {
   insertAttempt,
   fetchMyAttempts,
   fetchMyProjectPlan,
-  ensureGroups,
-  fetchMyGroup,
-  fetchClassStudents,
-  fetchProjectAttemptsForStudents,
+  fetchClassProjectAttempts,
   fetchCommentsForAttempts,
   addGalleryComment,
   fetchMyCommentCount,
 } from '../lib/supabase.js'
 
 const MAX_ROUNDS = 10
+const DISCUSSION_ID = 'discussion-board'
+// 발표(에이전트 데모)가 아닌 항목들 — 갤러리 작품 목록에서 제외
+const NON_DEMO_IDS = new Set([DISCUSSION_ID, 'discussion-memo', 'portfolio'])
+
+// created_at 내림차순 목록에서 작성자별 최신 1건만 남긴다.
+function latestByAuthor(list) {
+  const seen = new Set()
+  const out = []
+  for (const a of list) {
+    const k = a.student?.id
+    if (k && !seen.has(k)) {
+      seen.add(k)
+      out.push(a)
+    }
+  }
+  return out
+}
 
 export default function ProjectMode() {
   const { studentId, sessionId } = useStudentStore()
@@ -41,22 +56,34 @@ export default function ProjectMode() {
   const [error, setError] = useState('')
   const [history, setHistory] = useState([])
 
-  // 토론용 상태
-  const [group, setGroup] = useState(null)
-  const [groupMembers, setGroupMembers] = useState([])
-  const [groupAttempts, setGroupAttempts] = useState([])
+  // 학급 전체 공유 상태 (갤러리·공개 토론 공용)
+  const [classAttempts, setClassAttempts] = useState([])
   const [comments, setComments] = useState({})  // {attemptId: [...]}
   const [myCommentCount, setMyCommentCount] = useState(0)
-  const [groupsLoading, setGroupsLoading] = useState(false)
+  const [classLoading, setClassLoading] = useState(false)
+  const [classLoaded, setClassLoaded] = useState(false)
+  const [classErr, setClassErr] = useState('')
 
-  // 토론 메모
-  const [discNotes, setDiscNotes] = useState({ career: '', mechanism: '' })
+  // 공개 토론 — 내 답변
+  const [discAnswers, setDiscAnswers] = useState({ career: '', mechanism: '' })
+  const [discSaving, setDiscSaving] = useState(false)
+  const [discSavedAt, setDiscSavedAt] = useState(null)
+  const [discErr, setDiscErr] = useState('')
 
   // ── 초기 로드 ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!studentId) return
     fetchMyAttempts({ studentId, mode: 'project' })
-      .then((rows) => setHistory((rows || []).filter((a) => a.challenge_id !== 'discussion-memo' && a.challenge_id !== 'portfolio')))
+      .then((rows) => {
+        const list = rows || []
+        setHistory(list.filter((a) => !NON_DEMO_IDS.has(a.challenge_id)))
+        // 내 기존 공개 토론 답변 복원
+        const mine = list.find((a) => a.challenge_id === DISCUSSION_ID)
+        if (mine?.tool_trace) {
+          setDiscAnswers({ career: mine.tool_trace.career || '', mechanism: mine.tool_trace.mechanism || '' })
+          setDiscSavedAt(new Date(mine.created_at))
+        }
+      })
       .catch(() => {})
 
     fetchMyProjectPlan(studentId).then((p) => {
@@ -67,40 +94,32 @@ export default function ProjectMode() {
     fetchMyCommentCount(studentId).then(setMyCommentCount).catch(() => {})
   }, [studentId])
 
-  const loadGroups = async () => {
-    setGroupsLoading(true)
+  // 학급 전체 project 시도 로드 (갤러리·토론 공용). 탭 진입 시 1회.
+  const loadClass = async () => {
+    setClassLoading(true)
+    setClassErr('')
     try {
-      // 같은 학급에 조가 없으면 자동 배정
-      await ensureGroups(sessionId, 5)
-      const my = await fetchMyGroup({ sessionId, studentId })
-      setGroup(my)
-
-      if (my) {
-        const allStudents = await fetchClassStudents(sessionId)
-        const memberMap = Object.fromEntries(allStudents.map((s) => [s.id, s]))
-        setGroupMembers(my.member_student_ids.map((id) => memberMap[id]).filter(Boolean))
-
-        const attempts = await fetchProjectAttemptsForStudents(my.member_student_ids)
-        // 발표(에이전트 데모)만 — 토론 메모·포트폴리오 항목은 제외
-        const demos = attempts.filter((a) => a.challenge_id !== 'discussion-memo' && a.challenge_id !== 'portfolio')
-        setGroupAttempts(demos)
-
-        const cmts = await fetchCommentsForAttempts(attempts.map((a) => a.id))
-        const grouped = {}
-        for (const c of cmts) {
-          if (!grouped[c.attempt_id]) grouped[c.attempt_id] = []
-          grouped[c.attempt_id].push(c)
-        }
-        setComments(grouped)
+      const attempts = await fetchClassProjectAttempts(sessionId)
+      setClassAttempts(attempts)
+      const demoIds = attempts.filter((a) => !NON_DEMO_IDS.has(a.challenge_id)).map((a) => a.id)
+      const cmts = await fetchCommentsForAttempts(demoIds)
+      const grouped = {}
+      for (const c of cmts) {
+        if (!grouped[c.attempt_id]) grouped[c.attempt_id] = []
+        grouped[c.attempt_id].push(c)
       }
+      setComments(grouped)
+      setClassLoaded(true)
     } catch (e) {
-      setError(e.message || '조 정보 로드 실패')
+      setClassErr(e.message || '학급 데이터를 불러오지 못했어요. 새로고침해보세요.')
     }
-    setGroupsLoading(false)
+    setClassLoading(false)
   }
 
   useEffect(() => {
-    if (tab === 'group' && sessionId && studentId && !group) loadGroups()
+    if ((tab === 'gallery' || tab === 'discussion') && sessionId && studentId && !classLoaded && !classLoading) {
+      loadClass()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
@@ -181,6 +200,7 @@ export default function ProjectMode() {
         tool_trace: trace,
       })
       setHistory([row, ...history])
+      setClassLoaded(false) // 다음 갤러리 진입 시 내 새 발표 반영
     } catch (e) {
       setError(e.message || '등록 실패')
     }
@@ -201,6 +221,35 @@ export default function ProjectMode() {
     }
   }
 
+  // ── 공개 토론 게시 ─────────────────────────────────────────────────────────
+  const handlePostDiscussion = async () => {
+    setDiscErr('')
+    if (!discAnswers.career.trim() && !discAnswers.mechanism.trim()) {
+      setDiscErr('한 문항 이상 적어주세요.')
+      return
+    }
+    setDiscSaving(true)
+    try {
+      await insertAttempt({
+        student_id: studentId,
+        session_number: 6,
+        mode: 'project',
+        challenge_id: DISCUSSION_ID,
+        prompt: '[공개 토론]',
+        output_text: '',
+        tool_trace: { career: discAnswers.career.trim(), mechanism: discAnswers.mechanism.trim() },
+        reflection: `[진로 관점]\n${discAnswers.career}\n\n[메커니즘 회수]\n${discAnswers.mechanism}`,
+        is_public: true,
+      })
+      setDiscSavedAt(new Date())
+      setClassLoaded(false)
+      await loadClass() // 보드에 내 글 반영
+    } catch (e) {
+      setDiscErr(e.message || '게시 실패')
+    }
+    setDiscSaving(false)
+  }
+
   return (
     <StudentLayout needKey="anthropic" title="6차시 프로젝트">
       <ModeIntro modeKey="project" />
@@ -212,9 +261,9 @@ export default function ProjectMode() {
       <div className="card-sm" style={{ marginBottom: 16, display: 'flex', gap: 6 }}>
         {[
           { k: 'present', label: '🎤 내 에이전트 발표' },
-          { k: 'group', label: '👥 조 토론 + 동료 작품' },
+          { k: 'gallery', label: '🖼 갤러리 + 코멘트' },
+          { k: 'discussion', label: '💬 공개 토론' },
           { k: 'portfolio', label: '📁 포트폴리오' },
-          { k: 'memo', label: '📝 토론 메모' },
         ].map((t) => (
           <button
             key={t.k}
@@ -248,25 +297,35 @@ export default function ProjectMode() {
         />
       )}
 
-      {tab === 'group' && (
-        <GroupTab
-          group={group}
-          members={groupMembers}
-          attempts={groupAttempts}
+      {tab === 'gallery' && (
+        <GalleryTab
+          attempts={classAttempts.filter((a) => !NON_DEMO_IDS.has(a.challenge_id))}
           comments={comments}
           studentId={studentId}
-          loading={groupsLoading}
+          loading={classLoading}
           onComment={handleComment}
           myCommentCount={myCommentCount}
-          onLoad={loadGroups}
+          onReload={() => { setClassLoaded(false); loadClass() }}
+          error={classErr}
+        />
+      )}
+
+      {tab === 'discussion' && (
+        <DiscussionTab
+          answers={discAnswers}
+          setAnswers={setDiscAnswers}
+          onPost={handlePostDiscussion}
+          saving={discSaving}
+          savedAt={discSavedAt}
+          error={discErr}
+          posts={latestByAuthor(classAttempts.filter((a) => a.challenge_id === DISCUSSION_ID))}
+          loading={classLoading}
+          loadError={classErr}
+          studentId={studentId}
         />
       )}
 
       {tab === 'portfolio' && <PortfolioTab studentId={studentId} />}
-
-      {tab === 'memo' && (
-        <MemoTab notes={discNotes} setNotes={setDiscNotes} studentId={studentId} />
-      )}
     </StudentLayout>
   )
 }
@@ -340,7 +399,7 @@ function PresentTab({ plan, demoPrompt, setDemoPrompt, trace, finalAnswer, loadi
             className="card-sm"
             style={{ color: 'var(--warning)', background: 'rgba(245,158,11,0.1)' }}
           >
-            ⚠️ 5차시 기획서가 비어 있어요. <a href="/student/react">5차시</a>에서 먼저 기획서를 저장해주세요.
+            ⚠️ 5차시 기획서가 비어 있어요. <Link to="/student/react">5차시</Link>에서 먼저 기획서를 저장해주세요.
           </div>
         )}
 
@@ -407,53 +466,28 @@ function PresentTab({ plan, demoPrompt, setDemoPrompt, trace, finalAnswer, loadi
   )
 }
 
-// ── 조 탭 ────────────────────────────────────────────────────────────────
-function GroupTab({ group, members, attempts, comments, studentId, loading, onComment, myCommentCount, onLoad }) {
+// ── 갤러리 탭 (학급 작품 둘러보기 + 코멘트) ──────────────────────────────────
+function GalleryTab({ attempts, comments, studentId, loading, onComment, myCommentCount, onReload, error }) {
   const [drafts, setDrafts] = useState({})
-
-  if (loading) {
-    return <p className="muted">조 배정 중...</p>
-  }
-  if (!group) {
-    return (
-      <div className="card">
-        <p className="muted">아직 조가 배정되지 않았어요.</p>
-        <button className="btn btn-primary" onClick={onLoad} style={{ marginTop: 10 }}>
-          🎲 조 배정 받기
-        </button>
-        <p className="muted small" style={{ marginTop: 8 }}>
-          학급 전체 학생을 랜덤 5인씩 묶어 자동 배정합니다.
-        </p>
-      </div>
-    )
-  }
-
-  const me = members.find((m) => m.id === studentId)
-  const others = members.filter((m) => m.id !== studentId)
 
   return (
     <div className="col" style={{ gap: 16 }}>
-      <div className="card-sm">
-        <p className="muted small">내 조</p>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginTop: 2 }}>{group.group_number}조</h3>
-        <p className="muted small" style={{ marginTop: 6 }}>
-          멤버 {members.length}명: {members.map((m) => `${m.student_number} ${m.name}`).join(' · ')}
-        </p>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+        <div
+          className="card-sm"
+          style={{ flex: 1, background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.88rem' }}
+        >
+          🖼 학급 친구들이 만든 에이전트를 둘러보고 코멘트를 남겨요 — 내 코멘트 <strong>{myCommentCount}</strong>개 / 권장 3개 이상
+        </div>
+        <button className="btn" onClick={onReload} disabled={loading} style={{ whiteSpace: 'nowrap' }}>
+          {loading ? '불러오는 중...' : '🔄 새로고침'}
+        </button>
       </div>
 
-      <div
-        className="card-sm"
-        style={{
-          background: 'rgba(99,102,241,0.08)',
-          borderColor: 'var(--accent)',
-          fontSize: '0.88rem',
-        }}
-      >
-        💬 동료 작품에 코멘트 — 현재 {myCommentCount}개 / 권장 3개 이상
-      </div>
-
-      {attempts.length === 0 && (
-        <p className="muted small">조원들이 아직 발표를 등록하지 않았어요. 잠시 후 새로고침해보세요.</p>
+      {error && <p className="error">{error}</p>}
+      {loading && attempts.length === 0 && <p className="muted small">학급 작품을 불러오는 중...</p>}
+      {!loading && attempts.length === 0 && (
+        <p className="muted small">아직 등록된 발표 작품이 없어요. 친구들이 등록하면 여기에 보입니다. (🔄 새로고침)</p>
       )}
 
       <div className="col" style={{ gap: 12 }}>
@@ -542,65 +576,83 @@ function GroupTab({ group, members, attempts, comments, studentId, loading, onCo
   )
 }
 
-// ── 토론 메모 탭 ────────────────────────────────────────────────────────────
-function MemoTab({ notes, setNotes, studentId }) {
-  const [saving, setSaving] = useState(false)
-  const [savedAt, setSavedAt] = useState(null)
-  const [err, setErr] = useState('')
-
-  const save = async () => {
-    setErr('')
-    if (!notes.career.trim() && !notes.mechanism.trim()) {
-      setErr('한 문항 이상 적어주세요.')
-      return
-    }
-    setSaving(true)
-    try {
-      await insertAttempt({
-        student_id: studentId,
-        session_number: 6,
-        mode: 'project',
-        challenge_id: 'discussion-memo',
-        prompt: '[토론 메모 폼]',
-        output_text: '',
-        reflection: `[1. 진로 관점]\n${notes.career}\n\n[2. 메커니즘 회수]\n${notes.mechanism}`,
-      })
-      setSavedAt(new Date())
-    } catch (e) {
-      setErr(e.message || '저장 실패')
-    }
-    setSaving(false)
-  }
-
+// ── 공개 토론 탭 (학급 전체가 글을 올리고 서로 읽는 보드) ─────────────────────
+function DiscussionTab({ answers, setAnswers, onPost, saving, savedAt, error, posts, loading, loadError, studentId }) {
   return (
-    <div className="col" style={{ gap: 14 }}>
-      {DISCUSSION_QUESTIONS.map((q) => (
-        <div key={q.id} className="card">
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 4 }}>{q.title}</h3>
-          <p className="muted small" style={{ marginBottom: 10 }}>{q.prompt}</p>
-          <textarea
-            value={notes[q.id]}
-            onChange={(e) => setNotes({ ...notes, [q.id]: e.target.value })}
-            rows={5}
-            style={{
-              width: '100%',
-              background: 'var(--bg)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              padding: '8px 10px',
-              color: 'var(--text)',
-              fontSize: '0.92rem',
-              fontFamily: 'inherit',
-              resize: 'vertical',
-            }}
-            placeholder="조 토론에서 나온 본인 생각을 짧게 정리"
-          />
-        </div>
-      ))}
-      {err && <p className="error">{err}</p>}
-      <button className="btn btn-primary" onClick={save} disabled={saving}>
-        {saving ? '저장 중...' : savedAt ? `💾 다시 저장 (마지막: ${savedAt.toLocaleTimeString()})` : '💾 메모 저장'}
-      </button>
+    <div className="col" style={{ gap: 16 }}>
+      <div
+        className="card-sm"
+        style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.88rem' }}
+      >
+        💬 <strong>공개 토론</strong> — 아래 두 질문에 내 생각을 적어 <strong>게시</strong>하면 학급 전체가 서로의 글을 읽을 수 있어요.
+        다른 친구들의 글도 같이 살펴보고, 생각이 바뀌면 다시 게시해도 됩니다.
+      </div>
+
+      {/* 내 답변 작성 */}
+      <div className="col" style={{ gap: 12 }}>
+        {DISCUSSION_QUESTIONS.map((q) => (
+          <div key={q.id} className="card">
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 4 }}>{q.title}</h3>
+            <p className="muted small" style={{ marginBottom: 10 }}>{q.prompt}</p>
+            <textarea
+              value={answers[q.id]}
+              onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
+              rows={4}
+              style={{
+                width: '100%',
+                background: 'var(--bg)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+                padding: '8px 10px',
+                color: 'var(--text)',
+                fontSize: '0.92rem',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+              }}
+              placeholder="내 생각을 적어보기 (게시하면 학급 전체에 공개)"
+            />
+          </div>
+        ))}
+        {error && <p className="error">{error}</p>}
+        <button className="btn btn-primary" onClick={onPost} disabled={saving}>
+          {saving ? '게시 중...' : savedAt ? `🔁 다시 게시 (마지막: ${savedAt.toLocaleTimeString()})` : '📣 학급에 게시'}
+        </button>
+      </div>
+
+      {/* 공개 보드 */}
+      <div className="col" style={{ gap: 12 }}>
+        <p style={{ fontWeight: 700 }}>
+          🗣 학급 공개 토론 보드 {loading && <span className="muted small">· 불러오는 중...</span>}
+        </p>
+        {loadError && <p className="error">{loadError}</p>}
+        {DISCUSSION_QUESTIONS.map((q) => {
+          const qPosts = posts.filter((p) => (p.tool_trace?.[q.id] || '').trim())
+          return (
+            <div key={q.id} className="card">
+              <p style={{ fontWeight: 700, marginBottom: 8 }}>
+                {q.title} <span className="muted small">· {qPosts.length}명 참여</span>
+              </p>
+              {qPosts.length === 0 && <p className="muted small">아직 게시된 글이 없어요.</p>}
+              <div className="col" style={{ gap: 8 }}>
+                {qPosts.map((p) => {
+                  const mine = p.student?.id === studentId
+                  return (
+                    <div key={p.id} style={{ borderLeft: `3px solid ${mine ? 'var(--accent)' : 'var(--border)'}`, paddingLeft: 10 }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>
+                        {p.student?.student_number} {p.student?.name}
+                        {mine && <span className="tag" style={{ marginLeft: 6 }}>나</span>}
+                      </div>
+                      <div className="muted small" style={{ whiteSpace: 'pre-wrap', marginTop: 2 }}>
+                        {p.tool_trace[q.id]}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

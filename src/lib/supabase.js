@@ -10,7 +10,6 @@ export const supabase = createClient(url, anon, {
 export const STUDENTS = 'ai8_students'
 export const ATTEMPTS = 'ai8_attempts'
 export const PROJECT_PLANS = 'ai8_project_plans'
-export const DISCUSSION_GROUPS = 'ai8_discussion_groups'
 export const GALLERY_COMMENTS = 'ai8_gallery_comments'
 export const GALLERY_BUCKET = 'ai8-gallery'
 
@@ -126,7 +125,7 @@ export async function fetchMyProjectPlan(studentId) {
   return data
 }
 
-// ── 6차시: 학급 학생 + 자동 조 배정 ─────────────────────────────────────────
+// ── 6차시: 학급 학생 ─────────────────────────────────────────────────────────
 export async function fetchClassStudents(sessionId) {
   const { data, error } = await supabase
     .from(STUDENTS)
@@ -137,57 +136,15 @@ export async function fetchClassStudents(sessionId) {
   return data
 }
 
-export async function fetchExistingGroups(sessionId) {
-  const { data, error } = await supabase
-    .from(DISCUSSION_GROUPS)
-    .select('*')
-    .eq('session_id', sessionId)
-    .order('group_number', { ascending: true })
-  if (error) throw error
-  return data
-}
-
 /**
- * 조 배정 — sessionId의 학생을 랜덤으로 그룹 크기 groupSize씩 묶어 저장.
- * 이미 그룹이 있으면 그대로 반환 (idempotent).
+ * 같은 학급(session_id)의 모든 project 모드 시도(에이전트 발표·공개 토론·포트폴리오 포함)를
+ * 작성자 정보와 함께 created_at 내림차순으로 가져온다. 표시 측에서 challenge_id로 용도를 구분한다.
  */
-export async function ensureGroups(sessionId, groupSize = 5) {
-  const existing = await fetchExistingGroups(sessionId)
-  if (existing.length > 0) return existing
-
+export async function fetchClassProjectAttempts(sessionId) {
   const students = await fetchClassStudents(sessionId)
-  if (students.length === 0) return []
-
-  // Fisher–Yates shuffle
-  const shuffled = [...students]
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-  }
-
-  const groups = []
-  for (let i = 0; i < shuffled.length; i += groupSize) {
-    const members = shuffled.slice(i, i + groupSize)
-    groups.push({
-      session_id: sessionId,
-      group_number: groups.length + 1,
-      member_student_ids: members.map((s) => s.id),
-    })
-  }
-
-  const { data, error } = await supabase.from(DISCUSSION_GROUPS).insert(groups).select()
-  if (error) throw error
-  return data
-}
-
-export async function resetGroups(sessionId) {
-  const { error } = await supabase.from(DISCUSSION_GROUPS).delete().eq('session_id', sessionId)
-  if (error) throw error
-}
-
-export async function fetchMyGroup({ sessionId, studentId }) {
-  const groups = await fetchExistingGroups(sessionId)
-  return groups.find((g) => g.member_student_ids.includes(studentId)) || null
+  const ids = students.map((s) => s.id)
+  if (!ids.length) return []
+  return fetchProjectAttemptsForStudents(ids)
 }
 
 // ── 6차시: 갤러리 코멘트 ────────────────────────────────────────────────────
@@ -228,6 +185,7 @@ export async function fetchProjectAttemptsForStudents(studentIds) {
     .from(ATTEMPTS)
     .select('*, student:ai8_students(id, student_number, name)')
     .eq('mode', 'project')
+    .eq('hidden_by_teacher', false)
     .in('student_id', studentIds)
     .order('created_at', { ascending: false })
   if (error) throw error

@@ -14,14 +14,18 @@ function blockToText(block) {
 
 export default function ToolMode() {
   const { studentId } = useStudentStore()
-  const [challenge, setChallenge] = useState(TOOL_CHALLENGES[0])
+  const [stepIdx, setStepIdx] = useState(0)
   const [prompt, setPrompt] = useState('')
-  const [trace, setTrace] = useState([])       // {role, blocks, toolName?, toolInput?, toolResult?}[]
+  const [trace, setTrace] = useState([])
   const [finalAnswer, setFinalAnswer] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [history, setHistory] = useState([])
   const [reflection, setReflection] = useState('')
+  const [obsChecks, setObsChecks] = useState({})
+
+  const challenge = TOOL_CHALLENGES[stepIdx]
+  const lastStep = TOOL_CHALLENGES.length - 1
 
   useEffect(() => {
     if (!studentId) return
@@ -31,6 +35,22 @@ export default function ToolMode() {
   }, [studentId])
 
   const myForChallenge = history.filter((h) => h.challenge_id === challenge.id)
+  const doneIds = new Set(history.map((h) => h.challenge_id))
+
+  const resetStepState = () => {
+    setPrompt('')
+    setTrace([])
+    setFinalAnswer('')
+    setReflection('')
+    setError('')
+    setObsChecks({})
+  }
+
+  const goStep = (i) => {
+    if (i < 0 || i > lastStep) return
+    setStepIdx(i)
+    resetStepState()
+  }
 
   const handleRun = async () => {
     setError('')
@@ -43,7 +63,6 @@ export default function ToolMode() {
     setFinalAnswer('')
     resetMemo()
 
-    // Anthropic tool_use 멀티턴 루프
     const messages = [{ role: 'user', content: prompt }]
     const newTrace = [{ kind: 'user', text: prompt }]
     setTrace([...newTrace])
@@ -61,13 +80,11 @@ export default function ToolMode() {
         const assistantContent = raw.content || []
         messages.push({ role: 'assistant', content: assistantContent })
 
-        // text 블록 모두 trace에 추가
         const textParts = assistantContent.filter((b) => b.type === 'text').map(blockToText).join('').trim()
         if (textParts) {
           newTrace.push({ kind: 'thought', text: textParts })
         }
 
-        // tool_use 블록이 없으면 종료
         const toolUses = assistantContent.filter((b) => b.type === 'tool_use')
         if (toolUses.length === 0) {
           setFinalAnswer(textParts)
@@ -75,7 +92,6 @@ export default function ToolMode() {
           break
         }
 
-        // 도구 호출 — 한 라운드에 여러 개 있을 수 있음
         const toolResults = []
         for (const u of toolUses) {
           let result
@@ -86,13 +102,7 @@ export default function ToolMode() {
             result = { error: err.message }
             isError = true
           }
-          newTrace.push({
-            kind: 'tool',
-            name: u.name,
-            input: u.input,
-            output: result,
-            error: isError,
-          })
+          newTrace.push({ kind: 'tool', name: u.name, input: u.input, output: result, error: isError })
           toolResults.push({
             type: 'tool_result',
             tool_use_id: u.id,
@@ -101,7 +111,6 @@ export default function ToolMode() {
           })
         }
         setTrace([...newTrace])
-
         messages.push({ role: 'user', content: toolResults })
 
         if (round === MAX_TOOL_ROUNDS - 1) {
@@ -129,13 +138,14 @@ export default function ToolMode() {
         prompt,
         output_text: finalAnswer,
         tool_trace: trace,
+        self_check: obsChecks,
         reflection: reflection || null,
       })
       setHistory([row, ...history])
-      setPrompt('')
       setTrace([])
       setFinalAnswer('')
       setReflection('')
+      setObsChecks({})
     } catch (e) {
       setError(e.message || '등록 실패')
     }
@@ -146,74 +156,48 @@ export default function ToolMode() {
       <ModeIntro modeKey="tool" />
 
       {/* 도구 4종 안내 */}
-      <div
-        className="card-sm"
-        style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8 }}
-      >
+      <div className="card-sm" style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         <span className="muted small" style={{ marginRight: 4 }}>플랫폼이 미리 제공하는 도구:</span>
         {Object.entries(TOOL_LABELS).map(([k, v]) => (
-          <span
-            key={k}
-            className="tag"
-            style={{ padding: '4px 10px', fontSize: '0.85rem', background: 'var(--surface2)' }}
-          >
+          <span key={k} className="tag" style={{ padding: '4px 10px', fontSize: '0.85rem', background: 'var(--surface2)' }}>
             {v.emoji} {v.label} <code style={{ opacity: 0.6 }}>{k}</code>
           </span>
         ))}
       </div>
 
-      {/* 챌린지 탭 */}
-      <div className="card-sm" style={{ marginBottom: 16, display: 'flex', gap: 6 }}>
-        {TOOL_CHALLENGES.map((c) => {
-          const selected = challenge.id === c.id
-          return (
-            <button
-              key={c.id}
-              className="btn"
-              onClick={() => {
-                setChallenge(c)
-                setPrompt('')
-                setTrace([])
-                setFinalAnswer('')
-              }}
-              style={{
-                flex: 1,
-                padding: '8px 10px',
-                fontSize: '0.9rem',
-                background: selected ? 'var(--accent)' : 'var(--surface2)',
-                borderColor: selected ? 'var(--accent)' : 'var(--border)',
-                color: selected ? 'white' : 'var(--text)',
-              }}
-            >
-              Lv{c.level} {c.emoji} {c.title}
-            </button>
-          )
-        })}
-      </div>
+      {/* 단계 진행 바 */}
+      <Stepper challenges={TOOL_CHALLENGES} current={stepIdx} doneIds={doneIds} onPick={goStep} />
 
       <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
-        {/* 좌측: 챌린지 + 프롬프트 */}
-        <div className="col" style={{ flex: '0 0 360px', gap: 16 }}>
+        {/* 좌측: 미션 + 프롬프트 */}
+        <div className="col" style={{ flex: '0 0 380px', gap: 16 }}>
           <div className="challenge">
-            <p className="meta">Level {challenge.level}</p>
+            <p className="meta">단계 {stepIdx + 1} / {TOOL_CHALLENGES.length} · Level {challenge.level}</p>
             <h3>{challenge.emoji} {challenge.title}</h3>
             <p className="muted small" style={{ marginBottom: 10 }}>{challenge.description}</p>
 
-            <p className="muted small" style={{ fontWeight: 600 }}>예시 (클릭해 채우기)</p>
-            <ul style={{ paddingLeft: 18, lineHeight: 1.7, fontSize: '0.85rem' }}>
+            <div
+              className="card-sm"
+              style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.85rem', marginBottom: 10 }}
+            >
+              🎯 <strong>이 단계 목표</strong> — {challenge.goal}
+            </div>
+
+            <p className="muted small" style={{ fontWeight: 600 }}>이렇게 해보세요</p>
+            <ol style={{ paddingLeft: 18, lineHeight: 1.7, fontSize: '0.85rem', marginTop: 4 }}>
+              {challenge.doThis.map((d, i) => (
+                <li key={i} style={{ marginBottom: 2 }}>{d}</li>
+              ))}
+            </ol>
+
+            <p className="muted small" style={{ fontWeight: 600, marginTop: 10 }}>예시 (클릭해 채우기)</p>
+            <ul style={{ paddingLeft: 18, lineHeight: 1.7, fontSize: '0.85rem', marginTop: 4 }}>
               {challenge.seedPrompts.map((p, i) => (
                 <li key={i}>
                   <button
                     className="btn btn-ghost"
                     onClick={() => setPrompt(p)}
-                    style={{
-                      padding: 0,
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--accent-hover)',
-                      textAlign: 'left',
-                      fontSize: '0.85rem',
-                    }}
+                    style={{ padding: 0, background: 'none', border: 'none', color: 'var(--accent-hover)', textAlign: 'left', fontSize: '0.85rem' }}
                   >
                     {p}
                   </button>
@@ -221,28 +205,15 @@ export default function ToolMode() {
               ))}
             </ul>
 
-            <div
-              className="row"
-              style={{ flexWrap: 'wrap', gap: 6, marginTop: 10 }}
-            >
+            <div className="row" style={{ flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
               {challenge.expectedTools.map((t) => (
-                <span
-                  key={t}
-                  className="tag"
-                  style={{
-                    fontSize: '0.75rem',
-                    background: 'rgba(34, 197, 94, 0.15)',
-                    color: 'var(--success)',
-                  }}
-                >
+                <span key={t} className="tag" style={{ fontSize: '0.75rem', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)' }}>
                   예상 사용: {TOOL_LABELS[t]?.emoji} {TOOL_LABELS[t]?.label}
                 </span>
               ))}
             </div>
 
-            <p className="small" style={{ color: 'var(--warning)', marginTop: 10 }}>
-              💡 {challenge.hint}
-            </p>
+            <p className="small" style={{ color: 'var(--warning)', marginTop: 10 }}>💡 {challenge.hint}</p>
           </div>
 
           <div className="card">
@@ -267,7 +238,7 @@ export default function ToolMode() {
           </div>
         </div>
 
-        {/* 우측: 호출 시퀀스 */}
+        {/* 우측: 결과 + 관찰 + 등록 */}
         <div className="col" style={{ flex: 1, gap: 16 }}>
           {trace.length === 0 ? (
             <div className="card-sm muted small" style={{ textAlign: 'center', padding: 30 }}>
@@ -289,7 +260,29 @@ export default function ToolMode() {
 
           {trace.length > 0 && (
             <div className="card">
-              <label className="field">
+              <p className="muted small" style={{ fontWeight: 600, marginBottom: 8 }}>✅ 결과에서 확인 — 체크하며 관찰</p>
+              <div className="col" style={{ gap: 6 }}>
+                {challenge.observe.map((o, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setObsChecks({ ...obsChecks, [i]: !obsChecks[i] })}
+                    className="btn"
+                    style={{
+                      justifyContent: 'flex-start',
+                      textAlign: 'left',
+                      padding: '8px 10px',
+                      fontSize: '0.85rem',
+                      background: obsChecks[i] ? 'rgba(34,197,94,0.12)' : 'var(--surface2)',
+                      borderColor: obsChecks[i] ? 'var(--success)' : 'var(--border)',
+                      color: 'var(--text)',
+                    }}
+                  >
+                    {obsChecks[i] ? '✅' : '⬜'} {o}
+                  </button>
+                ))}
+              </div>
+
+              <label className="field" style={{ marginTop: 12 }}>
                 <span>관찰 메모 (선택)</span>
                 <textarea
                   value={reflection}
@@ -298,21 +291,15 @@ export default function ToolMode() {
                   placeholder="예) 검색이 비어 있을 때 AI는 ___ 했다. 도구 순서는 ___ → ___ → ___ 였다."
                 />
               </label>
-              <button
-                className="btn btn-primary"
-                onClick={handleRegister}
-                style={{ width: '100%', marginTop: 10 }}
-              >
-                📌 갤러리에 등록
+              <button className="btn btn-primary" onClick={handleRegister} style={{ width: '100%', marginTop: 10 }}>
+                📌 이 결과 갤러리에 등록
               </button>
             </div>
           )}
 
           {myForChallenge.length > 0 && (
             <div className="card-sm">
-              <p className="muted small" style={{ marginBottom: 6 }}>
-                이 챌린지 — {myForChallenge.length}회 등록
-              </p>
+              <p className="muted small" style={{ marginBottom: 6 }}>이 단계 — {myForChallenge.length}회 등록 ✓</p>
               {myForChallenge.slice(0, 3).map((a) => (
                 <div className="attempt" key={a.id} style={{ fontSize: '0.82rem' }}>
                   <span className="muted">{new Date(a.created_at).toLocaleTimeString()}</span>
@@ -329,7 +316,58 @@ export default function ToolMode() {
           )}
         </div>
       </div>
+
+      {/* 단계 이동 */}
+      <div className="row" style={{ justifyContent: 'space-between', marginTop: 20, gap: 10 }}>
+        <button className="btn" onClick={() => goStep(stepIdx - 1)} disabled={stepIdx === 0}>
+          ← 이전 단계
+        </button>
+        {stepIdx < lastStep ? (
+          <button className="btn btn-primary" onClick={() => goStep(stepIdx + 1)}>
+            다음 단계 ({TOOL_CHALLENGES[stepIdx + 1].emoji} {TOOL_CHALLENGES[stepIdx + 1].title}) →
+          </button>
+        ) : (
+          <span className="muted small" style={{ alignSelf: 'center' }}>
+            🎉 마지막 단계예요. 결과를 등록하면 4차시 완료!
+          </span>
+        )}
+      </div>
     </StudentLayout>
+  )
+}
+
+// ── 단계 진행 바 ─────────────────────────────────────────────────────────────
+function Stepper({ challenges, current, doneIds, onPick }) {
+  return (
+    <div className="card-sm" style={{ marginBottom: 16, display: 'flex', gap: 6, alignItems: 'stretch' }}>
+      {challenges.map((c, i) => {
+        const active = i === current
+        const done = doneIds.has(c.id)
+        return (
+          <button
+            key={c.id}
+            className="btn"
+            onClick={() => onPick(i)}
+            style={{
+              flex: 1,
+              flexDirection: 'column',
+              gap: 2,
+              padding: '8px 8px',
+              background: active ? 'var(--accent)' : 'var(--surface2)',
+              borderColor: active ? 'var(--accent)' : done ? 'var(--success)' : 'var(--border)',
+              color: active ? 'white' : 'var(--text)',
+            }}
+          >
+            <span style={{ fontSize: '0.72rem', opacity: 0.85 }}>
+              {done ? '✓ 완료' : `단계 ${i + 1}`}
+            </span>
+            <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+              {c.emoji} {c.title}
+            </span>
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -362,28 +400,11 @@ function TraceView({ trace }) {
             >
               <div style={{ fontSize: '0.82rem' }}>
                 <div className="muted">입력:</div>
-                <pre
-                  style={{
-                    background: 'var(--bg)',
-                    padding: 6,
-                    borderRadius: 4,
-                    fontSize: '0.78rem',
-                    overflowX: 'auto',
-                  }}
-                >
+                <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.78rem', overflowX: 'auto' }}>
                   {JSON.stringify(step.input, null, 2)}
                 </pre>
                 <div className="muted" style={{ marginTop: 4 }}>결과:</div>
-                <pre
-                  style={{
-                    background: 'var(--bg)',
-                    padding: 6,
-                    borderRadius: 4,
-                    fontSize: '0.78rem',
-                    overflowX: 'auto',
-                    color: step.error ? 'var(--danger)' : 'inherit',
-                  }}
-                >
+                <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.78rem', overflowX: 'auto', color: step.error ? 'var(--danger)' : 'inherit' }}>
                   {JSON.stringify(step.output, null, 2)}
                 </pre>
               </div>
@@ -398,22 +419,8 @@ function TraceView({ trace }) {
 
 function Step({ color, emoji, label, children }) {
   return (
-    <div
-      style={{
-        borderLeft: `3px solid ${color}`,
-        paddingLeft: 12,
-        marginLeft: 4,
-      }}
-    >
-      <div
-        style={{
-          fontSize: '0.78rem',
-          color,
-          fontWeight: 700,
-          marginBottom: 4,
-          letterSpacing: '0.02em',
-        }}
-      >
+    <div style={{ borderLeft: `3px solid ${color}`, paddingLeft: 12, marginLeft: 4 }}>
+      <div style={{ fontSize: '0.78rem', color, fontWeight: 700, marginBottom: 4, letterSpacing: '0.02em' }}>
         {emoji} {label}
       </div>
       <div>{children}</div>

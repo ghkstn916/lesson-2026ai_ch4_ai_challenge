@@ -19,9 +19,50 @@ import {
 
 const MAX_ROUNDS = 10
 
+const STEP_META = [
+  { id: 'concept', emoji: '🧠', title: 'ReAct 이해' },
+  { id: 'challenge', emoji: '🎯', title: 'D-day 브리핑 챌린지' },
+  { id: 'plan', emoji: '📋', title: '내 에이전트 기획서' },
+  { id: 'wrapup', emoji: '🏁', title: '마무리 점검' },
+]
+
+const OVERVIEW = {
+  title: "🧭 5차시 한눈에 보기 — ReAct: AI가 '생각'과 '도구 호출'을 번갈아 하며 스스로 문제를 푼다",
+  hint: '위 단계 바를 눌러 언제든 오갈 수 있어요.',
+  steps: [
+    { label: '❶ ReAct 이해', sub: '생각💭↔도구🛠↔결과📩가 번갈아 도는 원리를 한 장으로' },
+    { label: '❷ D-day 브리핑 챌린지', sub: '한 번의 프롬프트로 도구를 5~8단계 호출시키고 시퀀스 관찰·등록' },
+    { label: '❸ 내 에이전트 기획서', sub: '6차시에 발표할 미니 에이전트를 6필드 한 장으로 설계·저장' },
+    { label: '❹ 마무리 점검', sub: '두 산출물(등록·저장)을 확인하고 6차시로 연결' },
+  ],
+}
+
+const CONCEPT = {
+  goal: "AI가 '생각(Reasoning)'과 '도구 호출(Acting)'을 번갈아 하며 한 문제를 단계로 쪼개 푼다는 ReAct의 핵심을, 그리고 AI의 '생각(Thought)'이 화면에 드러나는 의의를 한 장으로 이해한다.",
+  doThis: [
+    "오른쪽 'ReAct란?' 카드와 💭생각 → 🛠도구 → 📩결과 → 💭다시 생각 흐름 그림을 본다.",
+    '4차시 도구와 뭐가 다른지 한 줄 비교를 읽는다 — 4차시는 내가 단계를 잘게 시켰지만, 5차시는 한 번의 프롬프트로 AI가 스스로 단계를 짜서 도구를 여러 번 이어 부른다.',
+    "'예고 미니 시퀀스'를 훑어 다음 단계에서 볼 장면을 미리 그린다.",
+    "다 읽었으면 아래 '이해했어요 ✓'를 눌러 챌린지로 간다.",
+  ],
+  observe: [
+    "AI의 '생각'이 보이면 좋은 점: ① 어디서 길을 잘못 들었는지 추적 ② 다음 도구를 왜 골랐는지 근거 ③ 결과가 비거나 틀려도 스스로 방향을 고치는 게 보임.",
+    "'생각↔도구↔결과'가 한 질문 안에서 5~8번 반복되는 그림을 머리에 담았다.",
+  ],
+  headline: 'ReAct = 생각(Reasoning) ↔ 행동(Acting)을 번갈아',
+  body: "지금까지(4차시) AI는 도구를 한두 번 부르고 끝났어요. ReAct는 한 걸음 더 나아갑니다. AI가 먼저 '💭이걸 알려면 남은 날짜부터 구해야지'라고 생각(Reasoning)하고 → 📅날짜계산 도구를 부르고(Acting) → 📩결과(178일)를 받아 → 다시 '💭그럼 주말 횟수를 계산하자'라고 생각하고 → 🧮계산기를 부르는 식으로, 생각과 도구 호출을 한 질문 안에서 5~8번 번갈아 하며 큰 문제를 작은 단계로 쪼개 끝까지 풉니다. 도구를 스스로 여러 번 이어 부르기 시작하는 순간, 단순한 챗봇은 '작은 에이전트'가 됩니다.",
+  analogy: "요리사가 레시피를 통째로 외워 한 번에 만드는 게 아니라, 냄비를 보며 '간이 싱겁네(생각) → 소금을 넣는다(행동) → 다시 맛본다(결과) → 이번엔 좀 짜네(생각)…'를 반복하는 것과 같아요. AI도 도구 결과를 '맛보며' 다음 행동을 그때그때 정합니다.",
+  thoughtNote: "이 화면은 AI의 '생각(Thought)'을 💭로 일부러 드러내 보여줍니다. 답만 툭 나오는 게 아니라 추론 과정이 노출되니, AI가 옳게/틀리게 판단한 지점을 따라가며 프롬프트를 어떻게 고칠지 배울 수 있어요.",
+  compareTitle: '4차시 도구와 뭐가 다른가요?',
+  compareBody: '4차시는 내가 단계를 잘게 시켰어요. 5차시는 한 번의 프롬프트로 AI가 스스로 단계를 짜서 도구를 여러 번 이어 부릅니다.',
+  previewTitle: '예고 미니 시퀀스 (다음 단계에서 볼 장면)',
+  previewSeq: '💭 남은 일수부터 알아야겠다 → 📅 date_diff → 📩 178일 → 💭 주말 횟수를 계산하자 → 🧮 calc → 📩 25.4회 → 💭 메모에서 점수를 불러오자 → 🗒 memo(load) …',
+}
+
 export default function ReactMode() {
   const { studentId } = useStudentStore()
-  const [tab, setTab] = useState('challenge')
+  const [stepIdx, setStepIdx] = useState(0)
+  const [conceptRead, setConceptRead] = useState(false)
 
   // 챌린지 상태
   const [prompt, setPrompt] = useState('')
@@ -30,6 +71,8 @@ export default function ReactMode() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [history, setHistory] = useState([])
+  const [obsChecks, setObsChecks] = useState({})
+  const [reflection, setReflection] = useState('')
 
   // 기획서 상태
   const [plan, setPlan] = useState({
@@ -43,6 +86,9 @@ export default function ReactMode() {
   const [planSaving, setPlanSaving] = useState(false)
   const [planSavedAt, setPlanSavedAt] = useState(null)
   const [planError, setPlanError] = useState('')
+
+  // 마무리
+  const [takeaway, setTakeaway] = useState('')
 
   useEffect(() => {
     if (!studentId) return
@@ -61,6 +107,17 @@ export default function ReactMode() {
       }
     })
   }, [studentId])
+
+  const challengeDone = history.length > 0
+  const planDone = !!planSavedAt
+  // 챌린지를 이미 한 학생은 개념을 거친 것으로 간주(새로고침·건너뛰기 보정)
+  const doneArr = [conceptRead || challengeDone, challengeDone, planDone, challengeDone && planDone]
+
+  const goStep = (i) => {
+    if (i < 0 || i > STEP_META.length - 1) return
+    setStepIdx(i)
+    setError('')
+  }
 
   // ── 챌린지 실행 ───────────────────────────────────────────────────────────
   const handleRun = async () => {
@@ -131,7 +188,10 @@ export default function ReactMode() {
   }
 
   const handleRegister = async () => {
-    if (trace.length === 0) return
+    if (trace.length === 0) {
+      setError('먼저 AI에게 보내보세요.')
+      return
+    }
     try {
       const row = await insertAttempt({
         student_id: studentId,
@@ -141,11 +201,14 @@ export default function ReactMode() {
         prompt,
         output_text: finalAnswer,
         tool_trace: trace,
+        self_check: obsChecks,
+        reflection: reflection || null,
       })
       setHistory([row, ...history])
-      setPrompt('')
       setTrace([])
       setFinalAnswer('')
+      setObsChecks({})
+      setReflection('')
     } catch (e) {
       setError(e.message || '등록 실패')
     }
@@ -195,35 +258,21 @@ export default function ReactMode() {
     })
   }
 
+  const stepId = STEP_META[stepIdx].id
+
   return (
     <StudentLayout needKey="anthropic" title="5차시 리액트">
       <ModeIntro modeKey="react" />
 
-      {/* 탭 */}
-      <div className="card-sm" style={{ marginBottom: 16, display: 'flex', gap: 6 }}>
-        {[
-          { k: 'challenge', label: '🧠 리액트 챌린지 (다단계)' },
-          { k: 'plan', label: '📋 내 미니 에이전트 기획서' },
-        ].map((t) => (
-          <button
-            key={t.k}
-            className="btn"
-            onClick={() => setTab(t.k)}
-            style={{
-              flex: 1,
-              padding: '10px 12px',
-              background: tab === t.k ? 'var(--accent)' : 'var(--surface2)',
-              borderColor: tab === t.k ? 'var(--accent)' : 'var(--border)',
-              color: tab === t.k ? 'white' : 'var(--text)',
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <OverviewBanner current={stepIdx} onPick={goStep} />
+      <Stepper current={stepIdx} doneArr={doneArr} onPick={goStep} />
 
-      {tab === 'challenge' && (
-        <ChallengeTab
+      {stepId === 'concept' && (
+        <StepConcept onUnderstood={() => { setConceptRead(true); goStep(1) }} />
+      )}
+
+      {stepId === 'challenge' && (
+        <StepChallenge
           prompt={prompt}
           setPrompt={setPrompt}
           trace={trace}
@@ -232,12 +281,16 @@ export default function ReactMode() {
           error={error}
           onRun={handleRun}
           onRegister={handleRegister}
+          obsChecks={obsChecks}
+          setObsChecks={setObsChecks}
+          reflection={reflection}
+          setReflection={setReflection}
           historyCount={history.length}
         />
       )}
 
-      {tab === 'plan' && (
-        <PlanTab
+      {stepId === 'plan' && (
+        <StepPlan
           plan={plan}
           setPlan={setPlan}
           toggleTool={toggleTool}
@@ -248,19 +301,202 @@ export default function ReactMode() {
           loadExample={loadExample}
         />
       )}
+
+      {stepId === 'wrapup' && (
+        <StepWrapup
+          challengeDone={challengeDone}
+          planDone={planDone}
+          takeaway={takeaway}
+          setTakeaway={setTakeaway}
+          goStep={goStep}
+        />
+      )}
+
+      {/* 단계 이동 */}
+      <div className="row" style={{ justifyContent: 'space-between', marginTop: 20, gap: 10 }}>
+        <button className="btn" onClick={() => goStep(stepIdx - 1)} disabled={stepIdx === 0}>
+          ← 이전 단계
+        </button>
+        {stepIdx < STEP_META.length - 1 ? (
+          <button className="btn btn-primary" onClick={() => goStep(stepIdx + 1)}>
+            다음 단계 ({STEP_META[stepIdx + 1].emoji} {STEP_META[stepIdx + 1].title}) →
+          </button>
+        ) : (
+          <span className="muted small" style={{ alignSelf: 'center' }}>
+            🎉 두 산출물(챌린지 등록 + 기획서 저장)을 채우면 5차시 완료!
+          </span>
+        )}
+      </div>
     </StudentLayout>
   )
 }
 
-function ChallengeTab({ prompt, setPrompt, trace, finalAnswer, loading, error, onRun, onRegister, historyCount }) {
+// ── 전체 흐름 개요 배너 ──────────────────────────────────────────────────────
+function OverviewBanner({ current, onPick }) {
+  return (
+    <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
+      <p style={{ fontWeight: 700, marginBottom: 4 }}>{OVERVIEW.title}</p>
+      <p className="muted small" style={{ marginBottom: 10 }}>{OVERVIEW.hint}</p>
+      <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+        {OVERVIEW.steps.map((s, i) => (
+          <button
+            key={i}
+            onClick={() => onPick(i)}
+            className="card-sm"
+            style={{
+              flex: '1 1 180px',
+              textAlign: 'left',
+              cursor: 'pointer',
+              background: i === current ? 'rgba(99,102,241,0.10)' : 'var(--surface2)',
+              borderColor: i === current ? 'var(--accent)' : 'var(--border)',
+            }}
+          >
+            <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{s.label}</div>
+            <div className="muted small" style={{ marginTop: 2 }}>{s.sub}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── 단계 진행 바 (4차시 ToolMode와 동일 패턴) ────────────────────────────────
+function Stepper({ current, doneArr, onPick }) {
+  return (
+    <div className="card-sm" style={{ marginBottom: 16, display: 'flex', gap: 6, alignItems: 'stretch' }}>
+      {STEP_META.map((s, i) => {
+        const active = i === current
+        const done = doneArr[i]
+        const tag = done ? (i === 0 ? '읽음 ✓' : '✓ 완료') : `단계 ${i + 1}`
+        return (
+          <button
+            key={s.id}
+            className="btn"
+            onClick={() => onPick(i)}
+            style={{
+              flex: 1,
+              flexDirection: 'column',
+              gap: 2,
+              padding: '8px 6px',
+              background: active ? 'var(--accent)' : 'var(--surface2)',
+              borderColor: active ? 'var(--accent)' : done ? 'var(--success)' : 'var(--border)',
+              color: active ? 'white' : 'var(--text)',
+            }}
+          >
+            <span style={{ fontSize: '0.7rem', opacity: 0.85 }}>{tag}</span>
+            <span style={{ fontWeight: 700, fontSize: '0.86rem' }}>{s.emoji} {s.title}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── 단계 ❶ 개념 ──────────────────────────────────────────────────────────────
+function StepConcept({ onUnderstood }) {
   return (
     <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
       <div className="col" style={{ flex: '0 0 380px', gap: 16 }}>
         <div className="challenge">
-          <h3>{REACT_CHALLENGE.emoji} {REACT_CHALLENGE.title}</h3>
-          <p className="muted small" style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>
-            {REACT_CHALLENGE.description}
+          <p className="meta">단계 1 / 4</p>
+          <h3>🧠 ReAct 이해</h3>
+          <div
+            className="card-sm"
+            style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.85rem', margin: '8px 0 10px' }}
+          >
+            🎯 <strong>이 단계 목표</strong> — {CONCEPT.goal}
+          </div>
+
+          <p className="muted small" style={{ fontWeight: 600 }}>이렇게 해보세요</p>
+          <ol style={{ paddingLeft: 18, lineHeight: 1.7, fontSize: '0.85rem', marginTop: 4 }}>
+            {CONCEPT.doThis.map((d, i) => <li key={i} style={{ marginBottom: 2 }}>{d}</li>)}
+          </ol>
+
+          <button className="btn btn-primary" onClick={onUnderstood} style={{ width: '100%', marginTop: 14 }}>
+            이해했어요 ✓ 챌린지로 →
+          </button>
+        </div>
+      </div>
+
+      <div className="col" style={{ flex: 1, gap: 16 }}>
+        <div className="card">
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>🧠 ReAct란?</h3>
+          <p style={{ fontWeight: 700, color: 'var(--accent-hover)', marginTop: 4 }}>{CONCEPT.headline}</p>
+          <p className="muted small" style={{ marginTop: 8, lineHeight: 1.7 }}>{CONCEPT.body}</p>
+
+          <ConceptDiagram />
+
+          <div className="card-sm" style={{ marginTop: 12, background: 'var(--surface2)' }}>
+            <p style={{ fontWeight: 700, fontSize: '0.9rem' }}>{CONCEPT.compareTitle}</p>
+            <p className="muted small" style={{ marginTop: 4 }}>{CONCEPT.compareBody}</p>
+          </div>
+
+          <div className="card-sm" style={{ marginTop: 10 }}>
+            <p style={{ fontWeight: 700, fontSize: '0.9rem' }}>🔮 {CONCEPT.previewTitle}</p>
+            <p className="muted small" style={{ marginTop: 4, lineHeight: 1.7 }}>{CONCEPT.previewSeq}</p>
+          </div>
+
+          <p className="muted small" style={{ marginTop: 12, fontStyle: 'italic', lineHeight: 1.7 }}>
+            🍳 {CONCEPT.analogy}
           </p>
+
+          <div
+            className="card-sm"
+            style={{ marginTop: 12, background: 'rgba(245,158,11,0.1)', borderColor: 'var(--warning)', fontSize: '0.82rem' }}
+          >
+            💭 <strong>'생각'이 보이는 게 왜 중요할까?</strong> — {CONCEPT.thoughtNote}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ConceptDiagram() {
+  const nodes = [
+    { e: '💭', t: '생각', c: '#94a3b8' },
+    { e: '🛠', t: '도구 호출', c: '#22c55e' },
+    { e: '📩', t: '결과', c: '#6366f1' },
+    { e: '💭', t: '다시 생각', c: '#94a3b8' },
+  ]
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div className="row" style={{ flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+        {nodes.map((n, i) => (
+          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span
+              className="tag"
+              style={{ background: n.c, color: 'white', fontSize: '0.82rem', padding: '4px 10px' }}
+            >
+              {n.e} {n.t}
+            </span>
+            {i < nodes.length - 1 && <span className="muted">→</span>}
+          </span>
+        ))}
+        <span className="muted">↻</span>
+      </div>
+      <p className="muted small" style={{ marginTop: 6 }}>생각↔도구↔결과가 한 질문 안에서 5~8번 번갈아 돕니다.</p>
+    </div>
+  )
+}
+
+// ── 단계 ❷ 챌린지 ────────────────────────────────────────────────────────────
+function StepChallenge({ prompt, setPrompt, trace, finalAnswer, loading, error, onRun, onRegister, obsChecks, setObsChecks, reflection, setReflection, historyCount }) {
+  return (
+    <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
+      <div className="col" style={{ flex: '0 0 380px', gap: 16 }}>
+        <div className="challenge">
+          <p className="meta">단계 2 / 4</p>
+          <h3>{REACT_CHALLENGE.emoji} {REACT_CHALLENGE.title}</h3>
+
+          <div
+            className="card-sm"
+            style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.85rem', margin: '8px 0 10px' }}
+          >
+            🎯 <strong>이 단계 목표</strong> — {REACT_CHALLENGE.goal}
+          </div>
+
+          <p className="muted small" style={{ whiteSpace: 'pre-wrap' }}>{REACT_CHALLENGE.description}</p>
 
           <p className="muted small" style={{ fontWeight: 600, marginTop: 12 }}>📦 단계 비계 (클릭해서 입력)</p>
           {REACT_CHALLENGE.scaffolds.map((s, i) => (
@@ -268,31 +504,17 @@ function ChallengeTab({ prompt, setPrompt, trace, finalAnswer, loading, error, o
               key={i}
               className="btn"
               onClick={() => setPrompt(s.prompt)}
-              style={{
-                display: 'block',
-                width: '100%',
-                marginTop: 6,
-                padding: '6px 10px',
-                textAlign: 'left',
-                background: 'var(--surface2)',
-                fontSize: '0.85rem',
-              }}
+              style={{ display: 'block', width: '100%', marginTop: 6, padding: '6px 10px', textAlign: 'left', background: 'var(--surface2)', fontSize: '0.85rem' }}
             >
               {s.label}
             </button>
           ))}
 
-          <p className="small" style={{ marginTop: 14, color: 'var(--warning)' }}>
-            💡 힌트
-          </p>
+          <p className="small" style={{ marginTop: 14, color: 'var(--warning)' }}>💡 힌트</p>
           <ul className="muted small" style={{ paddingLeft: 18, lineHeight: 1.7 }}>
             {REACT_CHALLENGE.hints.map((h, i) => <li key={i}>{h}</li>)}
           </ul>
-          {historyCount > 0 && (
-            <p className="muted small" style={{ marginTop: 10 }}>
-              이미 {historyCount}회 등록함.
-            </p>
-          )}
+          {historyCount > 0 && <p className="muted small" style={{ marginTop: 10 }}>이미 {historyCount}회 등록함 ✓</p>}
         </div>
 
         <div className="card">
@@ -305,12 +527,7 @@ function ChallengeTab({ prompt, setPrompt, trace, finalAnswer, loading, error, o
               placeholder="단계 비계를 클릭해 채우거나 본인이 작성"
             />
           </label>
-          <button
-            className="btn btn-primary"
-            onClick={onRun}
-            disabled={loading || !prompt.trim()}
-            style={{ width: '100%', marginTop: 10 }}
-          >
+          <button className="btn btn-primary" onClick={onRun} disabled={loading || !prompt.trim()} style={{ width: '100%', marginTop: 10 }}>
             {loading ? '에이전트 동작 중...' : '🚀 다단계 실행 (최대 10라운드)'}
           </button>
           {error && <p className="error" style={{ marginTop: 10 }}>{error}</p>}
@@ -320,7 +537,7 @@ function ChallengeTab({ prompt, setPrompt, trace, finalAnswer, loading, error, o
       <div className="col" style={{ flex: 1, gap: 16 }}>
         {trace.length === 0 ? (
           <div className="card-sm muted small" style={{ textAlign: 'center', padding: 30 }}>
-            왼쪽에서 프롬프트를 보내면 다단계 호출 시퀀스가 여기에 표시됩니다.
+            왼쪽에서 프롬프트를 보내면 '생각↔도구↔결과'가 번갈아 도는 다단계 호출 시퀀스가 여기에 표시됩니다.
           </div>
         ) : (
           <div className="card">
@@ -333,8 +550,44 @@ function ChallengeTab({ prompt, setPrompt, trace, finalAnswer, loading, error, o
           <div className="card" style={{ borderColor: 'var(--success)' }}>
             <p className="muted small" style={{ marginBottom: 6 }}>💬 최종 답</p>
             <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.95rem' }}>{finalAnswer}</div>
-            <button className="btn btn-primary" onClick={onRegister} style={{ marginTop: 12, width: '100%' }}>
-              📌 갤러리에 등록
+          </div>
+        )}
+
+        {trace.length > 0 && (
+          <div className="card">
+            <p className="muted small" style={{ fontWeight: 600, marginBottom: 8 }}>✅ 결과에서 확인 — 체크하며 관찰</p>
+            <div className="col" style={{ gap: 6 }}>
+              {REACT_CHALLENGE.observe.map((o, i) => (
+                <button
+                  key={i}
+                  onClick={() => setObsChecks({ ...obsChecks, [i]: !obsChecks[i] })}
+                  className="btn"
+                  style={{
+                    justifyContent: 'flex-start',
+                    textAlign: 'left',
+                    padding: '8px 10px',
+                    fontSize: '0.85rem',
+                    background: obsChecks[i] ? 'rgba(34,197,94,0.12)' : 'var(--surface2)',
+                    borderColor: obsChecks[i] ? 'var(--success)' : 'var(--border)',
+                    color: 'var(--text)',
+                  }}
+                >
+                  {obsChecks[i] ? '✅' : '⬜'} {o}
+                </button>
+              ))}
+            </div>
+
+            <label className="field" style={{ marginTop: 12 }}>
+              <span>관찰 메모 (선택)</span>
+              <textarea
+                value={reflection}
+                onChange={(e) => setReflection(e.target.value)}
+                rows={2}
+                placeholder="예) 도구 순서는 ___ → ___ → ___ 였다. 생각 단계는 ___ 부분에서 보였다."
+              />
+            </label>
+            <button className="btn btn-primary" onClick={onRegister} style={{ width: '100%', marginTop: 10 }}>
+              📌 이 결과 갤러리에 등록
             </button>
           </div>
         )}
@@ -343,48 +596,31 @@ function ChallengeTab({ prompt, setPrompt, trace, finalAnswer, loading, error, o
   )
 }
 
-function PlanTab({ plan, setPlan, toggleTool, onSave, saving, savedAt, error, loadExample }) {
+// ── 단계 ❸ 기획서 ────────────────────────────────────────────────────────────
+function StepPlan({ plan, setPlan, toggleTool, onSave, saving, savedAt, error, loadExample }) {
   return (
     <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
       <div className="col" style={{ flex: 1, gap: 14 }}>
         <div className="card">
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 4 }}>
-            📋 내 미니 에이전트 기획서
-          </h2>
+          <p className="meta">단계 3 / 4</p>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 4 }}>📋 내 미니 에이전트 기획서</h2>
           <p className="muted small" style={{ marginBottom: 16 }}>
-            6차시에 발표할 본인 에이전트를 한 장으로. 마지막 저장본이 최신으로 유지됩니다.
+            6차시에 이 기획서대로 발표할 본인 에이전트를 한 장으로. 마지막 저장본이 최신으로 유지됩니다.
             {savedAt && <> · 마지막 저장: {savedAt.toLocaleTimeString()}</>}
           </p>
 
           <div className="form">
             <label className="field">
               <span>1. 사용자 / 상황 — 누가, 어떤 상황에 쓰나?</span>
-              <input
-                type="text"
-                value={plan.target_user}
-                onChange={(e) => setPlan({ ...plan, target_user: e.target.value })}
-                placeholder="예) 내일 모의고사를 앞둔 고3"
-              />
+              <input type="text" value={plan.target_user} onChange={(e) => setPlan({ ...plan, target_user: e.target.value })} placeholder="예) 내일 모의고사를 앞둔 고3" />
             </label>
-
             <label className="field">
               <span>2. 에이전트 이름</span>
-              <input
-                type="text"
-                value={plan.agent_name}
-                onChange={(e) => setPlan({ ...plan, agent_name: e.target.value })}
-                placeholder="예) 내일의 시간표 코치"
-              />
+              <input type="text" value={plan.agent_name} onChange={(e) => setPlan({ ...plan, agent_name: e.target.value })} placeholder="예) 내일의 시간표 코치" />
             </label>
-
             <label className="field">
               <span>3. 할 일 (한 문장)</span>
-              <input
-                type="text"
-                value={plan.task_one_liner}
-                onChange={(e) => setPlan({ ...plan, task_one_liner: e.target.value })}
-                placeholder="예) 오늘 점수표를 보고 내일 학습 계획을 30분 단위로 짜준다"
-              />
+              <input type="text" value={plan.task_one_liner} onChange={(e) => setPlan({ ...plan, task_one_liner: e.target.value })} placeholder="예) 오늘 점수표를 보고 내일 학습 계획을 30분 단위로 짜준다" />
             </label>
 
             <div className="field">
@@ -397,13 +633,7 @@ function PlanTab({ plan, setPlan, toggleTool, onSave, saving, savedAt, error, lo
                       key={t.key}
                       className="btn"
                       onClick={() => toggleTool(t.key)}
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: '0.85rem',
-                        background: on ? 'var(--accent)' : 'var(--surface2)',
-                        borderColor: on ? 'var(--accent)' : 'var(--border)',
-                        color: on ? 'white' : 'var(--text)',
-                      }}
+                      style={{ padding: '6px 12px', fontSize: '0.85rem', background: on ? 'var(--accent)' : 'var(--surface2)', borderColor: on ? 'var(--accent)' : 'var(--border)', color: on ? 'white' : 'var(--text)' }}
                     >
                       {on ? '✓ ' : ''}{t.label}
                     </button>
@@ -413,12 +643,12 @@ function PlanTab({ plan, setPlan, toggleTool, onSave, saving, savedAt, error, lo
             </div>
 
             <label className="field">
-              <span>5. 작동 시나리오 (3~6단계, 글로 풀어쓰기)</span>
+              <span>5. 작동 시나리오 (3~6단계, '생각→도구→결과'가 보이게 단계로 끊어 쓰기)</span>
               <textarea
                 value={plan.scenario}
                 onChange={(e) => setPlan({ ...plan, scenario: e.target.value })}
                 rows={5}
-                placeholder={`예)\n1) 학생이 점수표 입력 → 메모에 저장\n2) 내일까지 남은 시간 계산 (date_diff)\n3) 점수 비율에 따라 30분 단위 시간표 분배 (calc)\n4) 시간표 정리`}
+                placeholder={`예)\n1) 학생이 점수표 입력 → 메모에 저장\n2) 내일까지 남은 시간 계산 (date_diff)\n3) 점수 낮은 과목 비중↑ 30분 단위 분배 (calc)\n4) 시간표 정리`}
               />
             </label>
 
@@ -449,36 +679,68 @@ function PlanTab({ plan, setPlan, toggleTool, onSave, saving, savedAt, error, lo
               key={i}
               className="btn"
               onClick={() => loadExample(ex)}
-              style={{
-                width: '100%',
-                marginTop: 6,
-                padding: '8px 10px',
-                textAlign: 'left',
-                background: 'var(--surface2)',
-                fontSize: '0.85rem',
-                whiteSpace: 'normal',
-                lineHeight: 1.4,
-              }}
+              style={{ width: '100%', marginTop: 6, padding: '8px 10px', textAlign: 'left', background: 'var(--surface2)', fontSize: '0.85rem', whiteSpace: 'normal', lineHeight: 1.4 }}
             >
               <strong>{ex.agent_name}</strong>
-              <div className="muted small" style={{ marginTop: 2 }}>
-                {ex.target_user}
-              </div>
+              <div className="muted small" style={{ marginTop: 2 }}>{ex.target_user}</div>
             </button>
           ))}
         </div>
 
-        <div
-          className="card-sm"
-          style={{
-            background: 'rgba(99, 102, 241, 0.08)',
-            borderColor: 'var(--accent)',
-            fontSize: '0.82rem',
-          }}
-        >
-          🎯 다음 차시(6차시)에 본인 기획서대로 에이전트를 작동시켜보고 발표하게 됩니다.
-          교사와 1:1 순회 시간에 현실성을 같이 점검해보세요.
+        <div className="card-sm" style={{ background: 'rgba(99, 102, 241, 0.08)', borderColor: 'var(--accent)', fontSize: '0.82rem' }}>
+          🎯 다음 차시(6차시)에 본인 기획서대로 에이전트를 작동시켜보고 발표하게 됩니다. 교사와 1:1 순회 시간에 현실성을 같이 점검해보세요.
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── 단계 ❹ 마무리 점검 ───────────────────────────────────────────────────────
+function StepWrapup({ challengeDone, planDone, takeaway, setTakeaway, goStep }) {
+  const allDone = challengeDone && planDone
+  const Row = ({ done, label, gotoIdx }) => (
+    <div
+      className="row"
+      style={{ justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: 'var(--radius)', background: done ? 'rgba(34,197,94,0.10)' : 'var(--surface2)', border: `1px solid ${done ? 'var(--success)' : 'var(--border)'}` }}
+    >
+      <span style={{ fontWeight: 600 }}>{done ? '✅' : '⬜'} {label}</span>
+      {!done && (
+        <button className="btn" onClick={() => goStep(gotoIdx)} style={{ padding: '4px 12px', fontSize: '0.82rem' }}>
+          바로가기 →
+        </button>
+      )}
+    </div>
+  )
+  return (
+    <div className="col" style={{ gap: 16, maxWidth: 720 }}>
+      <div className="card">
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 4 }}>🏁 마무리 점검 & 회수</h3>
+        <p className="muted small" style={{ marginBottom: 12 }}>오늘 만든 두 산출물이 모두 저장됐는지 확인하고 5차시를 닫습니다. (자동 연동 — 등록·저장하면 ✓)</p>
+        <div className="col" style={{ gap: 8 }}>
+          <Row done={challengeDone} label="❷ D-day 브리핑 챌린지 1건 등록" gotoIdx={1} />
+          <Row done={planDone} label="❸ 미니 에이전트 기획서 6필드 저장" gotoIdx={2} />
+        </div>
+        {allDone && (
+          <div className="card-sm" style={{ marginTop: 12, background: 'rgba(34,197,94,0.12)', borderColor: 'var(--success)', fontWeight: 600 }}>
+            🎉 두 산출물 완성 — 5차시 완료!
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <label className="field">
+          <span>오늘 들고 갈 한 가지 (한 줄로 적어보기)</span>
+          <textarea
+            value={takeaway}
+            onChange={(e) => setTakeaway(e.target.value)}
+            rows={2}
+            placeholder="ReAct = 생각(Reasoning) + 도구 호출(Acting)을 번갈아 — 내 말로 다시 적어보기"
+          />
+        </label>
+      </div>
+
+      <div className="card-sm" style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.85rem' }}>
+        📅 <strong>6차시 예고</strong> — 다음 시간엔 이 기획서대로 내 에이전트를 실제로 작동시켜 발표합니다.
       </div>
     </div>
   )

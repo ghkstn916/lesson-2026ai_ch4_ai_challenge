@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import StudentLayout from '../components/StudentLayout.jsx'
 import ModeIntro from '../components/ModeIntro.jsx'
 import useStudentStore from '../store/studentStore.js'
-import { IMAGE_CHALLENGES, IMAGE_ELEMENTS } from '../data/challenges-image.js'
+import { IMAGE_CHALLENGES, IMAGE_ELEMENTS, IMAGE_GUIDE } from '../data/challenges-image.js'
 import { generateImage } from '../lib/claude.js'
 import { insertAttempt, fetchMyAttempts, uploadBlob } from '../lib/supabase.js'
 
@@ -104,6 +104,7 @@ export default function ImageMode() {
   return (
     <StudentLayout needKey="openai" title="3차시 이미지">
       <ModeIntro modeKey="image" />
+      <ImageGuide />
       <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
         {/* ── 좌측: 챌린지 선택 + 5요소 힌트 ──────────────────────────────── */}
         <div className="col" style={{ flex: '0 0 340px', gap: 16 }}>
@@ -139,6 +140,21 @@ export default function ImageMode() {
             <p className="meta">Level {challenge.level}</p>
             <h3>{challenge.emoji} {challenge.title}</h3>
             <p className="muted small" style={{ marginBottom: 12 }}>{challenge.description}</p>
+
+            {challenge.extraHint && (
+              <div
+                className="card-sm"
+                style={{
+                  background: 'rgba(99,102,241,0.08)',
+                  borderColor: 'var(--accent)',
+                  fontSize: '0.82rem',
+                  marginBottom: 12,
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {challenge.extraHint}
+              </div>
+            )}
 
             <p className="muted small" style={{ fontWeight: 600, marginTop: 8 }}>5요소 힌트:</p>
             <ul className="muted small" style={{ paddingLeft: 0, listStyle: 'none', lineHeight: 1.7 }}>
@@ -293,5 +309,56 @@ export default function ImageMode() {
         </div>
       </div>
     </StudentLayout>
+  )
+}
+
+// ── 구도·5요소 상세 가이드 (접이식) ─────────────────────────────────────────
+function ImageGuide() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="card" style={{ marginBottom: 16, borderLeft: '4px solid var(--accent)' }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <p style={{ fontWeight: 700 }}>📐 구도·요소 자세히 보기 — 프롬프트에 넣을 어휘 사전</p>
+        <button className="btn btn-ghost" onClick={() => setOpen(!open)} style={{ fontSize: '0.8rem' }}>
+          {open ? '접기' : '펼치기'}
+        </button>
+      </div>
+      {open && (
+        <div className="col" style={{ gap: 14, marginTop: 12 }}>
+          <p className="muted small">{IMAGE_GUIDE.intro}</p>
+          {IMAGE_GUIDE.elements.map((el) => (
+            <div key={el.key} style={{ borderLeft: `3px solid ${el.color}`, paddingLeft: 12 }}>
+              <div style={{ marginBottom: 4 }}>
+                <span className="tag" style={{ background: el.color, color: 'white' }}>{el.label}</span>
+                <span className="muted small" style={{ marginLeft: 8 }}>{el.what}</span>
+              </div>
+              {el.options && (
+                <div className="col" style={{ gap: 3, marginTop: 6 }}>
+                  {el.options.map((o) => (
+                    <div key={o.name} style={{ fontSize: '0.82rem' }}>
+                      <strong>{o.name}</strong>
+                      <span className="muted"> — {o.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {el.tips && (
+                <ul className="muted small" style={{ paddingLeft: 16, marginTop: 6, lineHeight: 1.6 }}>
+                  {el.tips.map((t, i) => (
+                    <li key={i}>{t}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+          <div
+            className="card-sm"
+            style={{ background: 'rgba(245,158,11,0.1)', borderColor: 'var(--warning)', fontSize: '0.82rem' }}
+          >
+            ✍️ <strong>포스터·글자 미션 팁</strong> — {IMAGE_GUIDE.posterNote}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

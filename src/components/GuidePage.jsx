@@ -28,7 +28,7 @@ export default function GuidePage() {
             <li><strong>3차시 이미지</strong> — GPT Image 2, 이미지 프롬프팅 5요소</li>
             <li><strong>4차시 도구</strong> — 계산기·검색·메모·날짜, AI 도구 호출 흐름 + 환각/토큰 예측 회수</li>
             <li><strong>5차시 리액트</strong> — ReAct 다단계 추론·행동 + 미니 에이전트 기획서</li>
-            <li><strong>6차시 프로젝트</strong> — 발표 + 조 토론 + 갤러리 코멘트 + 베스트 작품 포트폴리오</li>
+            <li><strong>6차시 프로젝트</strong> — 발표 + 학급 갤러리 코멘트 + 공개 토론 보드 + 베스트 작품 포트폴리오</li>
           </ul>
         </div>
 
@@ -42,7 +42,7 @@ export default function GuidePage() {
               <ul style={{ paddingLeft: 16 }}>
                 <li className="muted small">기획: 도구 4종으로 실제 풀리는 현실적 미션인가 / 사용자·상황이 분명한가</li>
                 <li className="muted small">구현: 프롬프트가 실제로 작동하는가 / 단계가 매끄럽게 이어지는가 / 막혔을 때 수정한 흔적</li>
-                <li className="muted small">발표: 조별 소개 + 갤러리 코멘트의 명료성 / 본인 에이전트의 쓸모 설명</li>
+                <li className="muted small">발표: 본인 에이전트 소개 + 갤러리 코멘트·공개 토론의 명료성 / 에이전트의 쓸모 설명</li>
               </ul>
             </li>
             <li><strong>베스트 작품 포트폴리오 30%</strong> — 작품 선택·완성도 15 / 자기 설명 15
