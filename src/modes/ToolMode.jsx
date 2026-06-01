@@ -123,7 +123,7 @@ export default function ToolMode() {
     try {
       const row = await insertAttempt({
         student_id: studentId,
-        session_number: 6,
+        session_number: 4,
         mode: 'tool',
         challenge_id: challenge.id,
         prompt,
@@ -142,7 +142,7 @@ export default function ToolMode() {
   }
 
   return (
-    <StudentLayout needKey="anthropic" title="6차시 도구">
+    <StudentLayout needKey="anthropic" title="4차시 도구">
       <ModeIntro modeKey="tool" />
 
       {/* 도구 4종 안내 */}

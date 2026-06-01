@@ -2,7 +2,14 @@ import { useEffect, useState } from 'react'
 import StudentLayout from '../components/StudentLayout.jsx'
 import ModeIntro from '../components/ModeIntro.jsx'
 import useStudentStore from '../store/studentStore.js'
-import { RECAP, DISCUSSION_QUESTIONS, PROJECT_REGISTER_HINT } from '../data/challenges-project.js'
+import {
+  RECAP,
+  DISCUSSION_QUESTIONS,
+  PROJECT_REGISTER_HINT,
+  PORTFOLIO_MODES,
+  PORTFOLIO_HINT,
+} from '../data/challenges-project.js'
+import { MODE_BY_KEY } from '../data/modes.js'
 import { REACT_SYSTEM_PROMPT } from '../data/challenges-react.js'
 import { TOOLS_SPEC, TOOL_LABELS, executeTool, resetMemo } from '../lib/tools.js'
 import { callClaude } from '../lib/claude.js'
@@ -48,7 +55,9 @@ export default function ProjectMode() {
   // ── 초기 로드 ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!studentId) return
-    fetchMyAttempts({ studentId, mode: 'project' }).then(setHistory).catch(() => {})
+    fetchMyAttempts({ studentId, mode: 'project' })
+      .then((rows) => setHistory((rows || []).filter((a) => a.challenge_id !== 'discussion-memo' && a.challenge_id !== 'portfolio')))
+      .catch(() => {})
 
     fetchMyProjectPlan(studentId).then((p) => {
       setPlanLoaded(p)
@@ -72,7 +81,9 @@ export default function ProjectMode() {
         setGroupMembers(my.member_student_ids.map((id) => memberMap[id]).filter(Boolean))
 
         const attempts = await fetchProjectAttemptsForStudents(my.member_student_ids)
-        setGroupAttempts(attempts)
+        // 발표(에이전트 데모)만 — 토론 메모·포트폴리오 항목은 제외
+        const demos = attempts.filter((a) => a.challenge_id !== 'discussion-memo' && a.challenge_id !== 'portfolio')
+        setGroupAttempts(demos)
 
         const cmts = await fetchCommentsForAttempts(attempts.map((a) => a.id))
         const grouped = {}
@@ -162,7 +173,7 @@ export default function ProjectMode() {
     try {
       const row = await insertAttempt({
         student_id: studentId,
-        session_number: 8,
+        session_number: 6,
         mode: 'project',
         challenge_id: planLoaded?.agent_name || 'my-agent',
         prompt: demoPrompt,
@@ -191,7 +202,7 @@ export default function ProjectMode() {
   }
 
   return (
-    <StudentLayout needKey="anthropic" title="8차시 프로젝트">
+    <StudentLayout needKey="anthropic" title="6차시 프로젝트">
       <ModeIntro modeKey="project" />
 
       {/* 단원 회수 카드 */}
@@ -202,6 +213,7 @@ export default function ProjectMode() {
         {[
           { k: 'present', label: '🎤 내 에이전트 발표' },
           { k: 'group', label: '👥 조 토론 + 동료 작품' },
+          { k: 'portfolio', label: '📁 포트폴리오' },
           { k: 'memo', label: '📝 토론 메모' },
         ].map((t) => (
           <button
@@ -250,6 +262,8 @@ export default function ProjectMode() {
         />
       )}
 
+      {tab === 'portfolio' && <PortfolioTab studentId={studentId} />}
+
       {tab === 'memo' && (
         <MemoTab notes={discNotes} setNotes={setDiscNotes} studentId={studentId} />
       )}
@@ -263,7 +277,7 @@ function RecapCard() {
   return (
     <div className="card" style={{ marginBottom: 16, borderLeft: '4px solid var(--success)' }}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
-        <p style={{ fontWeight: 700 }}>🌳 단원 전체 회수 — 1차시부터 7차시까지의 한 줄</p>
+        <p style={{ fontWeight: 700 }}>🌳 단원 전체 회수 — 1차시부터 5차시까지의 한 줄</p>
         <button className="btn btn-ghost" onClick={() => setOpen(!open)} style={{ fontSize: '0.8rem' }}>
           {open ? '접기' : '펼치기'}
         </button>
@@ -305,7 +319,7 @@ function PresentTab({ plan, demoPrompt, setDemoPrompt, trace, finalAnswer, loadi
       <div className="col" style={{ flex: '0 0 360px', gap: 16 }}>
         {plan ? (
           <div className="card-sm">
-            <p className="muted small" style={{ marginBottom: 4 }}>7차시 기획서</p>
+            <p className="muted small" style={{ marginBottom: 4 }}>5차시 기획서</p>
             <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>{plan.agent_name}</h3>
             <p className="muted small" style={{ marginTop: 4 }}>
               <strong>대상:</strong> {plan.target_user || '—'}
@@ -326,7 +340,7 @@ function PresentTab({ plan, demoPrompt, setDemoPrompt, trace, finalAnswer, loadi
             className="card-sm"
             style={{ color: 'var(--warning)', background: 'rgba(245,158,11,0.1)' }}
           >
-            ⚠️ 7차시 기획서가 비어 있어요. <a href="/student/react">7차시</a>에서 먼저 기획서를 저장해주세요.
+            ⚠️ 5차시 기획서가 비어 있어요. <a href="/student/react">5차시</a>에서 먼저 기획서를 저장해주세요.
           </div>
         )}
 
@@ -338,7 +352,7 @@ function PresentTab({ plan, demoPrompt, setDemoPrompt, trace, finalAnswer, loadi
               value={demoPrompt}
               onChange={(e) => setDemoPrompt(e.target.value)}
               rows={5}
-              placeholder="7차시 기획서의 시범 프롬프트가 자동으로 들어옵니다"
+              placeholder="5차시 기획서의 시범 프롬프트가 자동으로 들어옵니다"
             />
           </label>
           <button
@@ -544,7 +558,7 @@ function MemoTab({ notes, setNotes, studentId }) {
     try {
       await insertAttempt({
         student_id: studentId,
-        session_number: 8,
+        session_number: 6,
         mode: 'project',
         challenge_id: 'discussion-memo',
         prompt: '[토론 메모 폼]',
@@ -587,6 +601,147 @@ function MemoTab({ notes, setNotes, studentId }) {
       <button className="btn btn-primary" onClick={save} disabled={saving}>
         {saving ? '저장 중...' : savedAt ? `💾 다시 저장 (마지막: ${savedAt.toLocaleTimeString()})` : '💾 메모 저장'}
       </button>
+    </div>
+  )
+}
+
+// ── 포트폴리오 탭 (베스트 작품 1개 + 자기 설명, 수행평가 30%) ────────────────
+function PortfolioTab({ studentId }) {
+  const [works, setWorks] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [selectedId, setSelectedId] = useState(null)
+  const [explanation, setExplanation] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [savedAt, setSavedAt] = useState(null)
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    if (!studentId) return
+    fetchMyAttempts({ studentId })
+      .then((all) => {
+        const list = all || []
+        // 1~4차시(워밍업·시각화·이미지·도구) 작품만
+        setWorks(list.filter((a) => PORTFOLIO_MODES.includes(a.mode)))
+        // 기존 포트폴리오가 있으면 복원
+        const existing = list.find((a) => a.mode === 'project' && a.challenge_id === 'portfolio')
+        if (existing) {
+          setExplanation(existing.reflection || '')
+          setSavedAt(new Date(existing.created_at))
+          if (existing.tool_trace?.selected_attempt_id) {
+            setSelectedId(existing.tool_trace.selected_attempt_id)
+          }
+        }
+      })
+      .catch((e) => setErr(e.message || '작품 로드 실패'))
+      .finally(() => setLoading(false))
+  }, [studentId])
+
+  const selected = works.find((w) => w.id === selectedId)
+
+  const save = async () => {
+    setErr('')
+    if (!selectedId) {
+      setErr('베스트 작품을 1개 선택해주세요.')
+      return
+    }
+    if (!explanation.trim()) {
+      setErr('자기 설명을 한 단락 적어주세요.')
+      return
+    }
+    setSaving(true)
+    try {
+      await insertAttempt({
+        student_id: studentId,
+        session_number: 6,
+        mode: 'project',
+        challenge_id: 'portfolio',
+        prompt: `[포트폴리오 선택] ${selected.session_number}차시 ${MODE_BY_KEY[selected.mode]?.title || selected.mode} / ${selected.challenge_id}`,
+        output_text: selected.output_text || '',
+        output_blob_url: selected.output_blob_url || null,
+        reflection: explanation,
+        tool_trace: { selected_attempt_id: selectedId },
+        is_public: false,
+      })
+      setSavedAt(new Date())
+    } catch (e) {
+      setErr(e.message || '저장 실패')
+    }
+    setSaving(false)
+  }
+
+  if (loading) return <p className="muted">내 작품 불러오는 중...</p>
+
+  return (
+    <div className="col" style={{ gap: 14 }}>
+      <div
+        className="card-sm"
+        style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.9rem' }}
+      >
+        📁 {PORTFOLIO_HINT}
+      </div>
+
+      {works.length === 0 ? (
+        <div className="card muted small">
+          아직 1~4차시 작품이 없어요. 워밍업·시각화·이미지·도구 차시에서 작품을 먼저 등록한 뒤 골라보세요.
+        </div>
+      ) : (
+        <div className="col" style={{ gap: 10 }}>
+          <p className="muted small">① 베스트 작품 1개 선택 ({works.length}개 중)</p>
+          {works.map((w) => {
+            const picked = w.id === selectedId
+            const modeTitle = MODE_BY_KEY[w.mode]?.title || w.mode
+            return (
+              <button
+                key={w.id}
+                onClick={() => setSelectedId(w.id)}
+                className="card"
+                style={{
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  borderColor: picked ? 'var(--accent)' : 'var(--border)',
+                  borderWidth: picked ? 2 : 1,
+                  background: picked ? 'rgba(99,102,241,0.06)' : 'var(--surface)',
+                }}
+              >
+                <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontWeight: 700 }}>
+                    {picked ? '🔘' : '⚪'} {w.session_number}차시 · {modeTitle}
+                  </span>
+                  <span className="muted small">{new Date(w.created_at).toLocaleString()}</span>
+                </div>
+                {w.output_blob_url ? (
+                  <img
+                    src={w.output_blob_url}
+                    alt="작품"
+                    style={{ maxWidth: 180, marginTop: 8, borderRadius: 'var(--radius)' }}
+                  />
+                ) : (
+                  <div className="muted small" style={{ marginTop: 6, whiteSpace: 'pre-wrap' }}>
+                    {(w.output_text || w.prompt || '').slice(0, 160)}
+                    {(w.output_text || w.prompt || '').length > 160 && '...'}
+                  </div>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      <div className="card">
+        <label className="field">
+          <span>② 자기 설명 — 왜 이 작품을 골랐는지, 어떤 프롬프트 전략을 썼는지 (한 단락)</span>
+          <textarea
+            value={explanation}
+            onChange={(e) => setExplanation(e.target.value)}
+            rows={5}
+            placeholder="예) 이미지 차시의 '수험생의 책상'을 골랐다. 스튜디오 라이팅과 구도를 구체적으로 지시했더니..."
+          />
+        </label>
+        {err && <p className="error" style={{ marginTop: 8 }}>{err}</p>}
+        <button className="btn btn-primary" onClick={save} disabled={saving} style={{ marginTop: 10 }}>
+          {saving ? '저장 중...' : savedAt ? `💾 다시 저장 (마지막: ${savedAt.toLocaleTimeString()})` : '💾 포트폴리오 제출'}
+        </button>
+      </div>
     </div>
   )
 }

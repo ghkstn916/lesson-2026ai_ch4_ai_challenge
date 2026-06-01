@@ -50,7 +50,7 @@ export default function JoinPage() {
           🎓 AI 챌린지 입장
         </h1>
         <p className="muted" style={{ marginBottom: 20 }}>
-          고3 인공지능 기초 — 생성형 AI와 에이전틱 AI (8차시)
+          고3 인공지능 기초 — 생성형 AI와 에이전틱 AI (6차시)
         </p>
 
         <form onSubmit={handleSubmit} className="form">
@@ -95,7 +95,7 @@ export default function JoinPage() {
           </p>
 
           <label className="field">
-            <span>Anthropic API 키 <em>(필수 — 1·2·4·5·6·7·8차시)</em></span>
+            <span>Anthropic API 키 <em>(필수 — 1·2·4·5·6차시)</em></span>
             <input
               type="password"
               value={anthropicKey}

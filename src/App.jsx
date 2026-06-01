@@ -9,8 +9,6 @@ import TeacherDashboard from './pages/TeacherDashboard.jsx'
 import WarmupMode from './modes/WarmupMode.jsx'
 import VisualMode from './modes/VisualMode.jsx'
 import ImageMode from './modes/ImageMode.jsx'
-import StructureMode from './modes/StructureMode.jsx'
-import LimitMode from './modes/LimitMode.jsx'
 import ToolMode from './modes/ToolMode.jsx'
 import ReactMode from './modes/ReactMode.jsx'
 import ProjectMode from './modes/ProjectMode.jsx'
@@ -26,8 +24,6 @@ export default function App() {
         <Route path="/student/warmup" element={<WarmupMode />} />
         <Route path="/student/visual" element={<VisualMode />} />
         <Route path="/student/image" element={<ImageMode />} />
-        <Route path="/student/structure" element={<StructureMode />} />
-        <Route path="/student/limit" element={<LimitMode />} />
         <Route path="/student/tool" element={<ToolMode />} />
         <Route path="/student/react" element={<ReactMode />} />
         <Route path="/student/project" element={<ProjectMode />} />

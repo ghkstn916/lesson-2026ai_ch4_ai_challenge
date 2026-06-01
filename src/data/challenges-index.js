@@ -5,8 +5,6 @@
 import { WARMUP_CHALLENGES } from './challenges-warmup.js'
 import { BATTLE_CHALLENGES } from './challenges-battle.js'
 import { IMAGE_CHALLENGES } from './challenges-image.js'
-import { STRUCTURE_CHALLENGES } from './challenges-structure.js'
-import { LIMIT_CHALLENGES } from './challenges-limit.js'
 import { TOOL_CHALLENGES } from './challenges-tool.js'
 import { REACT_CHALLENGE } from './challenges-react.js'
 
@@ -18,8 +16,6 @@ export const CHALLENGE_INDEX = {
   warmup: toMap(WARMUP_CHALLENGES),
   visual: toMap(BATTLE_CHALLENGES),
   image: toMap(IMAGE_CHALLENGES),
-  structure: toMap(STRUCTURE_CHALLENGES),
-  limit: toMap(LIMIT_CHALLENGES),
   tool: toMap(TOOL_CHALLENGES),
   react: { [REACT_CHALLENGE.id]: REACT_CHALLENGE },
   project: {},

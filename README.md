@@ -1,6 +1,7 @@
-# 인공지능 기초 8차시 — 생성형 AI와 에이전틱 AI
+# 인공지능 기초 6차시 — 생성형 AI와 에이전틱 AI
 
-고3 인공지능 기초 단원용 챌린지 플랫폼. `greatsong/vpython-prompt-challenge` 를 fork하여 PRD에 맞게 재구조화했다.
+고3 인공지능 기초 단원용 챌린지 플랫폼. `greatsong/vpython-prompt-challenge` 를 fork하여 PRD v1.1에 맞게 재구조화했다.
+생성형 3차시(워밍업·시각화·이미지) + 에이전틱 3차시(도구·리액트·프로젝트) 균형.
 
 ## 차시 구성
 
@@ -9,11 +10,12 @@
 | 1 | 워밍업 (warmup) | 텍스트 | ✅ 구현 |
 | 2 | 시각화 (visual) | VPython 3D | ✅ 구현 |
 | 3 | 이미지 (image) | PNG (GPT Image 2) | ✅ 구현 |
-| 4 | 구조화 (structure) | JSON → SVG → HTML 표 | ✅ 구현 |
-| 5 | 한계 (limit) | 텍스트 비교 (5회 병렬) | ✅ 구현 |
-| 6 | 도구 (tool) | 도구 호출 시퀀스 (multi-turn) | ✅ 구현 |
-| 7 | 리액트 (react) | ReAct + 미니 에이전트 기획서 | ✅ 구현 |
-| 8 | 프로젝트 (project) | 발표 + 조 토론 + 코멘트 | ✅ 구현 |
+| 4 | 도구 (tool) | 도구 호출 시퀀스 (multi-turn) | ✅ 구현 |
+| 5 | 리액트 (react) | ReAct + 미니 에이전트 기획서 | ✅ 구현 |
+| 6 | 프로젝트 (project) | 발표 + 조 토론 + 코멘트 + 포트폴리오 | ✅ 구현 |
+
+> v1.0(8차시)에서 구 4차시(구조화)·구 5차시(한계)를 제외하고 6차시로 재편. 한계/환각 인식은 4차시 도구 도입+Level 3과 6차시 토론으로 흡수.
+> 수행평가는 B안 — 미니 에이전트 프로젝트 70% + 1~4차시 베스트 작품 포트폴리오 30%.
 
 ## 기술 스택
 
@@ -44,7 +46,7 @@ npm run dev                # http://localhost:4008
 
 | 차시 | 필요한 키 |
 |---|---|
-| 1, 2, 4, 5, 6, 7, 8 | Anthropic API 키 (Claude) |
+| 1, 2, 4, 5, 6 | Anthropic API 키 (Claude) |
 | 3 | OpenAI API 키 (GPT Image 2) |
 
 서버에 보낸 키는 저장되지 않는다 (proxy 직접 전달).
@@ -59,4 +61,4 @@ Vercel 환경변수에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_ADMI
 
 ## PRD
 
-`hyehwa_lecture/PRD-AI기초-8차시.md` 참조.
+`PRD-AI기초-6차시.md` (v1.1) 참조.

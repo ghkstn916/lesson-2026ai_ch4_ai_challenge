@@ -18,7 +18,7 @@ function openaiHeaders() {
 }
 
 /**
- * 일반 텍스트 응답 (워밍업·한계·도구 등 거의 모든 곳).
+ * 일반 텍스트 응답 (워밍업·도구·리액트 등 거의 모든 곳).
  * @param {object} opts
  * @param {string} opts.model — 기본 claude-haiku-4-5-20251001
  * @param {Array}  opts.messages

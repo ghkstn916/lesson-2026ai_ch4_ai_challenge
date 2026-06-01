@@ -135,7 +135,7 @@ export default function ReactMode() {
     try {
       const row = await insertAttempt({
         student_id: studentId,
-        session_number: 7,
+        session_number: 5,
         mode: 'react',
         challenge_id: REACT_CHALLENGE.id,
         prompt,
@@ -196,7 +196,7 @@ export default function ReactMode() {
   }
 
   return (
-    <StudentLayout needKey="anthropic" title="7차시 리액트">
+    <StudentLayout needKey="anthropic" title="5차시 리액트">
       <ModeIntro modeKey="react" />
 
       {/* 탭 */}
@@ -352,7 +352,7 @@ function PlanTab({ plan, setPlan, toggleTool, onSave, saving, savedAt, error, lo
             📋 내 미니 에이전트 기획서
           </h2>
           <p className="muted small" style={{ marginBottom: 16 }}>
-            8차시에 발표할 본인 에이전트를 한 장으로. 마지막 저장본이 최신으로 유지됩니다.
+            6차시에 발표할 본인 에이전트를 한 장으로. 마지막 저장본이 최신으로 유지됩니다.
             {savedAt && <> · 마지막 저장: {savedAt.toLocaleTimeString()}</>}
           </p>
 
@@ -476,7 +476,7 @@ function PlanTab({ plan, setPlan, toggleTool, onSave, saving, savedAt, error, lo
             fontSize: '0.82rem',
           }}
         >
-          🎯 다음 차시(8차시)에 본인 기획서대로 에이전트를 작동시켜보고 발표하게 됩니다.
+          🎯 다음 차시(6차시)에 본인 기획서대로 에이전트를 작동시켜보고 발표하게 됩니다.
           교사와 1:1 순회 시간에 현실성을 같이 점검해보세요.
         </div>
       </div>

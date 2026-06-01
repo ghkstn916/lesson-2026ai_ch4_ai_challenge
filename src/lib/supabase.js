@@ -95,7 +95,7 @@ export async function setTeacherScore(attemptId, { score, comment }) {
   if (error) throw error
 }
 
-// ── 7차시: 프로젝트 기획서 ───────────────────────────────────────────────────
+// ── 5차시: 프로젝트 기획서 ───────────────────────────────────────────────────
 export async function upsertProjectPlan(plan) {
   // student_id 기준 upsert. 한 학생당 1개 기획서 (마지막 저장본이 최신)
   const existing = await fetchMyProjectPlan(plan.student_id)
@@ -126,7 +126,7 @@ export async function fetchMyProjectPlan(studentId) {
   return data
 }
 
-// ── 8차시: 학급 학생 + 자동 조 배정 ─────────────────────────────────────────
+// ── 6차시: 학급 학생 + 자동 조 배정 ─────────────────────────────────────────
 export async function fetchClassStudents(sessionId) {
   const { data, error } = await supabase
     .from(STUDENTS)
@@ -190,7 +190,7 @@ export async function fetchMyGroup({ sessionId, studentId }) {
   return groups.find((g) => g.member_student_ids.includes(studentId)) || null
 }
 
-// ── 8차시: 갤러리 코멘트 ────────────────────────────────────────────────────
+// ── 6차시: 갤러리 코멘트 ────────────────────────────────────────────────────
 export async function addGalleryComment({ attemptId, authorId, content }) {
   const { data, error } = await supabase
     .from(GALLERY_COMMENTS)
@@ -221,7 +221,7 @@ export async function fetchMyCommentCount(studentId) {
   return count || 0
 }
 
-// ── 8차시: 학생별 project mode 작품 가져오기 ─────────────────────────────────
+// ── 6차시: 학생별 project mode 작품 가져오기 ─────────────────────────────────
 export async function fetchProjectAttemptsForStudents(studentIds) {
   if (!studentIds.length) return []
   const { data, error } = await supabase

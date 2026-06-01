@@ -1,7 +1,7 @@
 {
   "name": "lesson-2026ai-ch4-ai-challenge",
   "version": "0.1.0",
-  "description": "고3 인공지능 기초 8차시 — 생성형 AI와 에이전틱 AI 챌린지 플랫폼",
+  "description": "고3 인공지능 기초 6차시 — 생성형 AI와 에이전틱 AI 챌린지 플랫폼",
   "type": "module",
   "private": true,
   "scripts": {
