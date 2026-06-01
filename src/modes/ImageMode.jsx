@@ -2,8 +2,14 @@ import { useEffect, useState } from 'react'
 import StudentLayout from '../components/StudentLayout.jsx'
 import ModeIntro from '../components/ModeIntro.jsx'
 import useStudentStore from '../store/studentStore.js'
-import { IMAGE_CHALLENGES, IMAGE_ELEMENTS, IMAGE_GUIDE } from '../data/challenges-image.js'
-import { generateImage } from '../lib/claude.js'
+import {
+  IMAGE_CHALLENGES,
+  IMAGE_ELEMENTS,
+  IMAGE_GUIDE,
+  composeImagePrompt,
+  IMAGE_REFINE_SYSTEM,
+} from '../data/challenges-image.js'
+import { generateImage, callClaude } from '../lib/claude.js'
 import { insertAttempt, fetchMyAttempts, uploadBlob } from '../lib/supabase.js'
 
 const SOFT_LIMIT = 3
@@ -15,22 +21,21 @@ function base64ToBlob(b64, type = 'image/jpeg') {
   return new Blob([arr], { type })
 }
 
+const emptyParts = () => ({ subject: '', style: '', composition: '', lighting: '', detail: '' })
+
 export default function ImageMode() {
-  const { studentId } = useStudentStore()
+  const { studentId, anthropicKey } = useStudentStore()
   const [challenge, setChallenge] = useState(IMAGE_CHALLENGES[0])
+  const [parts, setParts] = useState(emptyParts())
   const [prompt, setPrompt] = useState('')
+  const [dirty, setDirty] = useState(false)       // 학생이 완성 프롬프트를 직접 손댔는가
   const [imageUrl, setImageUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [history, setHistory] = useState([])
   const [reflection, setReflection] = useState('')
-  const [checks, setChecks] = useState({
-    subject: false,
-    style: false,
-    composition: false,
-    lighting: false,
-    detail: false,
-  })
+  const [refining, setRefining] = useState(false)
+  const [refineErr, setRefineErr] = useState('')
 
   useEffect(() => {
     if (!studentId) return
@@ -41,11 +46,67 @@ export default function ImageMode() {
 
   const myForChallenge = history.filter((h) => h.challenge_id === challenge.id)
   const totalAttempts = history.length
+  const filledCount = IMAGE_ELEMENTS.filter((e) => (parts[e.key] || '').trim()).length
+
+  const selectChallenge = (c) => {
+    setChallenge(c)
+    setParts(emptyParts())
+    setPrompt('')
+    setDirty(false)
+    setImageUrl('')
+    setError('')
+    setRefineErr('')
+    setReflection('')
+  }
+
+  // 요소 입력 → 직접 편집 전이면 완성 프롬프트를 자동으로 합쳐 갱신
+  const handlePart = (key, val) => {
+    const np = { ...parts, [key]: val }
+    setParts(np)
+    if (!dirty) setPrompt(composeImagePrompt(np))
+  }
+
+  const recombine = () => {
+    setPrompt(composeImagePrompt(parts))
+    setDirty(false)
+  }
+
+  // ✨ 단어로 적은 5요소를 이미지 프롬프트 "문장"으로 다듬기 (Claude)
+  const handleRefine = async () => {
+    setRefineErr('')
+    if (filledCount === 0) {
+      setRefineErr('먼저 5요소 중 한두 개라도 입력해주세요.')
+      return
+    }
+    if (!anthropicKey) {
+      setRefineErr('프롬프트 문장 다듬기는 Anthropic 키가 필요해요. (상단에서 키 입력)')
+      return
+    }
+    setRefining(true)
+    try {
+      const body =
+        IMAGE_ELEMENTS.map((e) => `${e.label}: ${(parts[e.key] || '').trim() || '(없음)'}`).join('\n') +
+        `\n\n미션: ${challenge.title}\n위 요소로 이미지 생성 프롬프트 한 문단을 완성해줘.`
+      const { text } = await callClaude({
+        model: 'claude-haiku-4-5-20251001',
+        maxTokens: 400,
+        system: IMAGE_REFINE_SYSTEM,
+        messages: [{ role: 'user', content: body }],
+      })
+      if (text) {
+        setPrompt(text.trim())
+        setDirty(true) // 다듬은 문장을 요소 변경이 덮어쓰지 않도록
+      }
+    } catch (e) {
+      setRefineErr(e.message || '다듬기 실패')
+    }
+    setRefining(false)
+  }
 
   const handleGenerate = async () => {
     setError('')
     if (!prompt.trim()) {
-      setError('프롬프트를 작성해주세요.')
+      setError('완성 프롬프트가 비어 있어요. 5요소를 입력하거나 직접 작성하세요.')
       return
     }
     setLoading(true)
@@ -54,14 +115,10 @@ export default function ImageMode() {
       const r = await generateImage({
         prompt,
         size: '1024x1024',
-        // 스트리밍 중 첫 partial(약 3~6초)이 도착하면 미리 화면에 띄운다
         onPartial: (b64) => setImageUrl(`data:image/jpeg;base64,${b64}`),
       })
-      if (r.b64) {
-        setImageUrl(`data:image/jpeg;base64,${r.b64}`)
-      } else if (r.url) {
-        setImageUrl(r.url)
-      }
+      if (r.b64) setImageUrl(`data:image/jpeg;base64,${r.b64}`)
+      else if (r.url) setImageUrl(r.url)
     } catch (e) {
       setError(e.message || '이미지 생성 실패')
     }
@@ -81,6 +138,9 @@ export default function ImageMode() {
         const blob = base64ToBlob(b64)
         publicUrl = await uploadBlob({ studentId, mode: 'image', file: blob, ext: 'jpg' })
       }
+      const elementCheck = Object.fromEntries(
+        IMAGE_ELEMENTS.map((e) => [e.key, !!(parts[e.key] || '').trim()])
+      )
       const row = await insertAttempt({
         student_id: studentId,
         session_number: 3,
@@ -88,14 +148,15 @@ export default function ImageMode() {
         challenge_id: challenge.id,
         prompt,
         output_blob_url: publicUrl,
-        self_check: checks,
+        self_check: { ...elementCheck, parts, editedByStudent: dirty },
         reflection: reflection || null,
       })
       setHistory([row, ...history])
+      setParts(emptyParts())
       setPrompt('')
+      setDirty(false)
       setImageUrl('')
       setReflection('')
-      setChecks({ subject: false, style: false, composition: false, lighting: false, detail: false })
     } catch (e) {
       setError(e.message || '등록 실패')
     }
@@ -106,8 +167,8 @@ export default function ImageMode() {
       <ModeIntro modeKey="image" />
       <ImageGuide />
       <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
-        {/* ── 좌측: 챌린지 선택 + 5요소 힌트 ──────────────────────────────── */}
-        <div className="col" style={{ flex: '0 0 340px', gap: 16 }}>
+        {/* ── 좌측: 챌린지 선택 + 미션 안내 ─────────────────────────────── */}
+        <div className="col" style={{ flex: '0 0 320px', gap: 16 }}>
           <div className="card-sm">
             <p className="muted small" style={{ marginBottom: 6 }}>오늘의 미션</p>
             {IMAGE_CHALLENGES.map((c) => {
@@ -116,11 +177,7 @@ export default function ImageMode() {
                 <button
                   key={c.id}
                   className="btn"
-                  onClick={() => {
-                    setChallenge(c)
-                    setPrompt('')
-                    setImageUrl('')
-                  }}
+                  onClick={() => selectChallenge(c)}
                   style={{
                     width: '100%',
                     justifyContent: 'flex-start',
@@ -139,103 +196,131 @@ export default function ImageMode() {
           <div className="challenge">
             <p className="meta">Level {challenge.level}</p>
             <h3>{challenge.emoji} {challenge.title}</h3>
-            <p className="muted small" style={{ marginBottom: 12 }}>{challenge.description}</p>
-
+            <p className="muted small" style={{ marginBottom: 10 }}>{challenge.description}</p>
             {challenge.extraHint && (
               <div
                 className="card-sm"
-                style={{
-                  background: 'rgba(99,102,241,0.08)',
-                  borderColor: 'var(--accent)',
-                  fontSize: '0.82rem',
-                  marginBottom: 12,
-                  whiteSpace: 'pre-wrap',
-                }}
+                style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.82rem', whiteSpace: 'pre-wrap' }}
               >
                 {challenge.extraHint}
               </div>
             )}
-
-            <p className="muted small" style={{ fontWeight: 600, marginTop: 8 }}>5요소 힌트:</p>
-            <ul className="muted small" style={{ paddingLeft: 0, listStyle: 'none', lineHeight: 1.7 }}>
-              {IMAGE_ELEMENTS.map((e) => (
-                <li key={e.key} style={{ marginTop: 6 }}>
-                  <span
-                    className="tag"
-                    style={{ background: e.color, color: 'white', marginBottom: 2 }}
-                  >
-                    {e.label}
-                  </span>
-                  <div style={{ marginTop: 2 }}>
-                    {challenge.suggestions[e.key]?.join(' / ')}
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <p className="muted small" style={{ marginTop: 10, fontSize: '0.82rem' }}>
+              💡 각 요소는 <strong>단어·명사로 적어도 OK</strong> — 아래 “✨ 문장으로 다듬기”가 이미지 프롬프트 문장으로 바꿔줍니다.
+            </p>
           </div>
+
+          {myForChallenge.length > 0 && (
+            <div className="card-sm">
+              <p className="muted small" style={{ marginBottom: 6 }}>
+                이 챌린지 등록 — <strong>{myForChallenge.length}</strong> / 권장 {challenge.minVariants}장
+              </p>
+              <div
+                style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 6 }}
+              >
+                {myForChallenge.map((a) => (
+                  <a key={a.id} href={a.output_blob_url} target="_blank" rel="noreferrer">
+                    <img
+                      src={a.output_blob_url}
+                      alt=""
+                      style={{ width: '100%', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* ── 우측: 프롬프트 + 결과 ─────────────────────────────────────── */}
+        {/* ── 우측: ① 5요소 입력 → ② 완성 프롬프트 → 생성 ──────────────── */}
         <div className="col" style={{ flex: 1, gap: 16 }}>
           {totalAttempts >= SOFT_LIMIT && (
             <div
               className="card-sm"
-              style={{
-                background: 'rgba(245, 158, 11, 0.1)',
-                borderColor: 'var(--warning)',
-                color: 'var(--warning)',
-                fontSize: '0.85rem',
-              }}
+              style={{ background: 'rgba(245, 158, 11, 0.1)', borderColor: 'var(--warning)', color: 'var(--warning)', fontSize: '0.85rem' }}
             >
-              💡 시도 {totalAttempts}회 — 새 프롬프트를 만들기 전에 잠시 멈추고
+              💡 시도 {totalAttempts}회 — 새 그림을 만들기 전에 잠시 멈추고
               5요소(주제·스타일·구도·라이팅·디테일) 중 무엇이 부족했는지 다시 들여다보면 큰 차이가 있어요.
             </div>
           )}
 
+          {/* ① 5요소 입력 */}
           <div className="card">
-            <label className="field">
-              <span>프롬프트 — 5요소를 풍부하게</span>
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder={`예) 나무 책상 위 빨간 사과 한 알. 수채화 스타일. 정면 클로즈업. 창문 자연광이 사과 왼쪽에 부드럽게 떨어짐. 사과 표면의 광택과 점 두 개, 책상 나뭇결 보임.`}
-                rows={5}
-              />
-            </label>
-
-            <div className="field" style={{ marginTop: 12 }}>
-              <span>이 프롬프트에 명시한 요소 (자기 점검)</span>
-              <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
-                {IMAGE_ELEMENTS.map((e) => (
-                  <button
-                    key={e.key}
-                    className="btn"
-                    onClick={() => setChecks({ ...checks, [e.key]: !checks[e.key] })}
-                    style={{
-                      padding: '4px 10px',
-                      fontSize: '0.85rem',
-                      background: checks[e.key] ? e.color : 'var(--surface2)',
-                      borderColor: checks[e.key] ? e.color : 'var(--border)',
-                      color: checks[e.key] ? 'white' : 'var(--text)',
-                    }}
-                  >
-                    {checks[e.key] ? '✓' : ''} {e.label}
-                  </button>
-                ))}
-              </div>
+            <div className="row" style={{ alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+              <p style={{ fontWeight: 700, fontSize: '1rem' }}>① 5요소를 채워보세요 (단어로 적어도 OK)</p>
+              <span className="small" style={{ color: filledCount ? 'var(--success)' : 'var(--text-muted)', fontWeight: 600 }}>
+                {filledCount}/5 입력됨
+              </span>
             </div>
+            <div className="col" style={{ gap: 10 }}>
+              {IMAGE_ELEMENTS.map((meta) => (
+                <ElementInput
+                  key={meta.key}
+                  meta={meta}
+                  value={parts[meta.key]}
+                  suggestions={challenge.suggestions[meta.key] || []}
+                  onChange={(val) => handlePart(meta.key, val)}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* ② 완성 프롬프트 (직접 수정 가능) */}
+          <div className="card" style={{ borderLeft: '4px solid var(--accent)' }}>
+            <div className="row" style={{ alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+              <p style={{ fontWeight: 700, fontSize: '1rem' }}>② 완성 프롬프트 <span className="muted small" style={{ fontWeight: 400 }}>— 직접 고칠 수 있어요</span></p>
+              {dirty && <span className="muted small" style={{ fontSize: '0.75rem' }}>✏️ 직접 편집 중</span>}
+            </div>
+
+            <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+              <button
+                className="btn btn-primary"
+                onClick={handleRefine}
+                disabled={refining || filledCount === 0}
+                style={{ padding: '8px 14px', fontSize: '0.88rem' }}
+              >
+                {refining ? '다듬는 중...' : '✨ AI로 문장 다듬기'}
+              </button>
+              <button
+                className="btn"
+                onClick={recombine}
+                disabled={filledCount === 0}
+                style={{ padding: '8px 14px', fontSize: '0.88rem' }}
+              >
+                🔁 5요소로 다시 합치기
+              </button>
+            </div>
+            {refineErr && <p className="error" style={{ marginBottom: 8 }}>{refineErr}</p>}
+
+            <textarea
+              value={prompt}
+              onChange={(e) => { setPrompt(e.target.value); setDirty(true) }}
+              rows={5}
+              placeholder="위 5요소를 채우면 여기에 자동으로 합쳐집니다. ‘✨ 문장으로 다듬기’를 누르거나, 이 칸에서 직접 고쳐도 돼요."
+              style={{
+                width: '100%',
+                background: 'var(--bg)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+                padding: '10px 12px',
+                color: 'var(--text)',
+                fontSize: '0.92rem',
+                lineHeight: 1.6,
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                outline: 'none',
+              }}
+            />
 
             <button
               className="btn btn-primary"
               onClick={handleGenerate}
               disabled={loading || !prompt.trim()}
-              style={{ width: '100%', marginTop: 14 }}
+              style={{ width: '100%', marginTop: 12, padding: '12px' }}
             >
               {loading ? '생성 중 (10~30초)...' : '🎨 이미지 생성'}
             </button>
-
             {error && <p className="error" style={{ marginTop: 10 }}>{error}</p>}
-
             <p className="muted small" style={{ marginTop: 10 }}>
               ⏱ 권장 시도: 3회. 현재 시도 — <strong>{totalAttempts}</strong>회.
             </p>
@@ -244,11 +329,7 @@ export default function ImageMode() {
           {imageUrl && (
             <div className="card">
               <p className="muted small" style={{ marginBottom: 8 }}>생성된 이미지</p>
-              <img
-                src={imageUrl}
-                alt="generated"
-                style={{ width: '100%', borderRadius: 'var(--radius)' }}
-              />
+              <img src={imageUrl} alt="generated" style={{ width: '100%', borderRadius: 'var(--radius)' }} />
 
               <label className="field" style={{ marginTop: 14 }}>
                 <span>관찰 메모 (선택) — 의도와 결과는 얼마나 일치했나요?</span>
@@ -260,55 +341,71 @@ export default function ImageMode() {
                 />
               </label>
 
-              <button
-                className="btn btn-primary"
-                onClick={handleRegister}
-                style={{ width: '100%', marginTop: 10 }}
-              >
+              <button className="btn btn-primary" onClick={handleRegister} style={{ width: '100%', marginTop: 10 }}>
                 📌 갤러리에 등록
               </button>
             </div>
           )}
-
-          <div className="card">
-            <p className="muted small" style={{ marginBottom: 8 }}>
-              이 챌린지 등록 — <strong>{myForChallenge.length}</strong> / 권장 {challenge.minVariants}장
-            </p>
-            {myForChallenge.length === 0 && (
-              <p className="muted small">아직 등록한 이미지가 없어요.</p>
-            )}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-                gap: 8,
-                marginTop: 8,
-              }}
-            >
-              {myForChallenge.map((a) => (
-                <a
-                  key={a.id}
-                  href={a.output_blob_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ display: 'block' }}
-                >
-                  <img
-                    src={a.output_blob_url}
-                    alt=""
-                    style={{
-                      width: '100%',
-                      borderRadius: 'var(--radius)',
-                      border: '1px solid var(--border)',
-                    }}
-                  />
-                </a>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </StudentLayout>
+  )
+}
+
+// ── 5요소 1개 입력 (단어·명사 OK + 추천 칩) ──────────────────────────────────
+function ElementInput({ meta, value, suggestions, onChange }) {
+  const filled = (value || '').trim()
+  return (
+    <div
+      style={{
+        padding: 10,
+        background: 'var(--bg)',
+        borderRadius: 'var(--radius)',
+        border: '1px solid ' + (filled ? meta.color : 'var(--border)'),
+      }}
+    >
+      <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+        <span className="tag" style={{ background: meta.color, color: 'white', fontWeight: 700 }}>{meta.label}</span>
+        <span className="muted small" style={{ fontSize: '0.72rem' }}>{filled ? '입력됨' : '단어·명사로 적어도 OK'}</span>
+      </div>
+      <input
+        type="text"
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={suggestions[0] ? `예: ${suggestions[0]}` : `${meta.label} 입력`}
+        style={{
+          width: '100%',
+          marginTop: 8,
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+          padding: '8px 10px',
+          color: 'var(--text)',
+          fontSize: '0.9rem',
+          outline: 'none',
+        }}
+      />
+      {suggestions.length > 0 && (
+        <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              className="btn btn-ghost"
+              onClick={() => onChange(s)}
+              style={{
+                padding: '3px 8px',
+                fontSize: '0.74rem',
+                border: '1px solid var(--border)',
+                background: value === s ? meta.color : 'transparent',
+                color: value === s ? 'white' : 'var(--text-muted)',
+              }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
