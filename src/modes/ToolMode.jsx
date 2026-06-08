@@ -157,8 +157,11 @@ export default function ToolMode() {
 
       {/* 플랫폼 제공 도구 안내 (설명 포함) */}
       <div className="card-sm" style={{ marginBottom: 16 }}>
-        <p className="muted small" style={{ fontWeight: 600, marginBottom: 8 }}>
+        <p className="muted small" style={{ fontWeight: 600, marginBottom: 4 }}>
           🧰 플랫폼이 미리 제공하는 도구 {Object.keys(TOOL_LABELS).length}종 — AI가 질문에 맞춰 <strong>자동으로 골라</strong> 씁니다
+        </p>
+        <p className="muted small" style={{ marginBottom: 8, opacity: 0.9 }}>
+          🌍 이건 <strong>맛보기</strong>예요 — 실제 AI 에이전트는 웹 검색·이미지 생성·코드 실행·번역·앱/로봇 제어 등 <strong>수백 가지</strong> 도구를 씁니다. AI의 세계는 훨씬 넓어요.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
           {Object.entries(TOOL_LABELS).map(([k, v]) => (

@@ -246,6 +246,131 @@ function dateDiff({ from, to }) {
   }
 }
 
+// ── 진법 변환 (코딩) ──────────────────────────────────────────────────────────
+function baseConvert({ value, from, to }) {
+  const f = parseInt(from, 10)
+  const t = parseInt(to, 10)
+  if (![2, 8, 10, 16].includes(f) || ![2, 8, 10, 16].includes(t)) {
+    throw new Error('from·to는 2, 8, 10, 16 중 하나여야 함')
+  }
+  const n = parseInt(String(value).trim(), f)
+  if (Number.isNaN(n)) throw new Error(`'${value}'를 ${f}진수로 해석할 수 없음`)
+  return { value: String(value), from: f, to: t, result: n.toString(t).toUpperCase(), decimal: n }
+}
+
+// ── JSON 정리·검증 (코딩) ─────────────────────────────────────────────────────
+function jsonFormat({ text }) {
+  try {
+    const obj = JSON.parse(text)
+    return { valid: true, formatted: JSON.stringify(obj, null, 2) }
+  } catch (e) {
+    return { valid: false, error: e.message }
+  }
+}
+
+// ── 정규식 테스트 (코딩) ──────────────────────────────────────────────────────
+function regexTest({ pattern, text, flags }) {
+  const fl = String(flags || '').replace(/[^gimsuy]/g, '')
+  let re
+  try {
+    re = new RegExp(pattern, fl.includes('g') ? fl : fl + 'g')
+  } catch (e) {
+    throw new Error('정규식 오류: ' + e.message)
+  }
+  const matches = []
+  let m
+  let guard = 0
+  while ((m = re.exec(String(text))) !== null) {
+    matches.push(m[0])
+    if (m.index === re.lastIndex) re.lastIndex++
+    if (++guard > 1000) break
+  }
+  return { pattern, flags: fl, matchCount: matches.length, matches: matches.slice(0, 50) }
+}
+
+// ── 색상 변환 HEX↔RGB (코딩/디자인) ───────────────────────────────────────────
+function colorConvert({ value }) {
+  const s = String(value).trim()
+  const hex = s.match(/^#?([0-9a-fA-F]{6})$/)
+  if (hex) {
+    const n = parseInt(hex[1], 16)
+    const r = (n >> 16) & 255
+    const g = (n >> 8) & 255
+    const b = n & 255
+    return { input: s, hex: '#' + hex[1].toLowerCase(), rgb: `rgb(${r}, ${g}, ${b})`, r, g, b }
+  }
+  const rgb = s.match(/(\d{1,3})\D+(\d{1,3})\D+(\d{1,3})/)
+  if (rgb) {
+    const r = +rgb[1]
+    const g = +rgb[2]
+    const b = +rgb[3]
+    if ([r, g, b].some((x) => x > 255)) throw new Error('RGB 각 값은 0~255')
+    const h = '#' + [r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('')
+    return { input: s, rgb: `rgb(${r}, ${g}, ${b})`, hex: h, r, g, b }
+  }
+  throw new Error('HEX(#RRGGBB) 또는 RGB(r,g,b) 형식이어야 함')
+}
+
+// ── Base64 인코딩/디코딩 (코딩) ───────────────────────────────────────────────
+function base64Tool({ action, text }) {
+  if (action === 'encode') {
+    const bytes = new TextEncoder().encode(String(text))
+    let bin = ''
+    bytes.forEach((b) => {
+      bin += String.fromCharCode(b)
+    })
+    return { action, result: btoa(bin) }
+  }
+  if (action === 'decode') {
+    try {
+      const bin = atob(String(text).trim())
+      const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0))
+      return { action, result: new TextDecoder().decode(bytes) }
+    } catch (e) {
+      throw new Error('올바른 Base64 문자열이 아님')
+    }
+  }
+  throw new Error("action은 'encode' 또는 'decode'")
+}
+
+// ── 문자 ↔ 유니코드 (코딩) ────────────────────────────────────────────────────
+function charCode({ text }) {
+  const s = String(text)
+  const codes = Array.from(s).map((ch) => ({
+    char: ch,
+    code: ch.codePointAt(0),
+    hex: 'U+' + ch.codePointAt(0).toString(16).toUpperCase().padStart(4, '0'),
+  }))
+  return { text: s, length: codes.length, codes: codes.slice(0, 50) }
+}
+
+// ── 텍스트 변환 ───────────────────────────────────────────────────────────────
+function textTransform({ text, op }) {
+  const s = String(text)
+  switch (op) {
+    case 'upper': return { op, result: s.toUpperCase() }
+    case 'lower': return { op, result: s.toLowerCase() }
+    case 'reverse': return { op, result: Array.from(s).reverse().join('') }
+    case 'sort_lines': return { op, result: s.split(/\r?\n/).sort().join('\n') }
+    case 'dedup_lines': return { op, result: [...new Set(s.split(/\r?\n/))].join('\n') }
+    case 'trim_lines': return { op, result: s.split(/\r?\n/).map((l) => l.trim()).join('\n') }
+    default: throw new Error('op은 upper|lower|reverse|sort_lines|dedup_lines|trim_lines 중 하나')
+  }
+}
+
+// ── 비율·퍼센트 ───────────────────────────────────────────────────────────────
+function percentTool({ part, whole, percent, of }) {
+  if (part != null && whole != null) {
+    const w = Number(whole)
+    if (!w) throw new Error('whole는 0이 아니어야 함')
+    return { mode: 'part/whole', result: round4((Number(part) / w) * 100), unit: '%' }
+  }
+  if (percent != null && of != null) {
+    return { mode: 'percent-of', result: round4((Number(percent) / 100) * Number(of)) }
+  }
+  throw new Error('part·whole 또는 percent·of 가 필요')
+}
+
 // ── 통합 디스패치 ───────────────────────────────────────────────────────────
 export function executeTool(name, input) {
   if (name === 'calc') return { result: evalExpression(input.expression) }
@@ -256,6 +381,14 @@ export function executeTool(name, input) {
   if (name === 'weekday') return weekdayOf(input)
   if (name === 'string_count') return stringCount(input)
   if (name === 'random_pick') return randomPick(input)
+  if (name === 'base_convert') return baseConvert(input)
+  if (name === 'json_format') return jsonFormat(input)
+  if (name === 'regex_test') return regexTest(input)
+  if (name === 'color_convert') return colorConvert(input)
+  if (name === 'base64') return base64Tool(input)
+  if (name === 'char_code') return charCode(input)
+  if (name === 'text_transform') return textTransform(input)
+  if (name === 'percent') return percentTool(input)
   if (name === 'memo') return memoOp(input)
   throw new Error(`알 수 없는 도구: ${name}`)
 }
@@ -366,6 +499,96 @@ export const TOOLS_SPEC = [
     },
   },
   {
+    name: 'base_convert',
+    description: '진법 변환. 2·8·10·16진수 사이를 바꾼다. 예: 2진수 1010 → 10진수, 255 → 16진수.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        value: { type: 'string', description: 'from 진법으로 적힌 수' },
+        from: { type: 'number', description: '원래 진법 (2/8/10/16)' },
+        to: { type: 'number', description: '바꿀 진법 (2/8/10/16)' },
+      },
+      required: ['value', 'from', 'to'],
+    },
+  },
+  {
+    name: 'json_format',
+    description: 'JSON 문자열이 올바른지 검증하고 보기 좋게 정리(들여쓰기)한다. 잘못된 JSON이면 오류를 알려준다.',
+    input_schema: {
+      type: 'object',
+      properties: { text: { type: 'string', description: 'JSON 문자열' } },
+      required: ['text'],
+    },
+  },
+  {
+    name: 'regex_test',
+    description: '정규식(pattern)을 text에 적용해 매칭되는 부분을 모두 찾는다. flags(g,i,m 등)는 선택.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        pattern: { type: 'string', description: '정규식 패턴' },
+        text: { type: 'string', description: '검사할 문자열' },
+        flags: { type: 'string', description: '예: i, g, gi (선택)' },
+      },
+      required: ['pattern', 'text'],
+    },
+  },
+  {
+    name: 'color_convert',
+    description: '색상 코드를 HEX↔RGB로 변환한다. 예: #4f46e5 → rgb, 또는 255,0,128 → HEX.',
+    input_schema: {
+      type: 'object',
+      properties: { value: { type: 'string', description: '#RRGGBB 또는 r,g,b' } },
+      required: ['value'],
+    },
+  },
+  {
+    name: 'base64',
+    description: '텍스트를 Base64로 인코딩하거나, Base64를 텍스트로 디코딩한다(UTF-8). action=encode|decode.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['encode', 'decode'] },
+        text: { type: 'string' },
+      },
+      required: ['action', 'text'],
+    },
+  },
+  {
+    name: 'char_code',
+    description: '문자열의 각 글자를 유니코드 코드포인트(10진수 code·U+16진수 hex)로 보여준다. 한글·이모지도 가능.',
+    input_schema: {
+      type: 'object',
+      properties: { text: { type: 'string' } },
+      required: ['text'],
+    },
+  },
+  {
+    name: 'text_transform',
+    description: '텍스트 변환. op=upper(대문자)|lower(소문자)|reverse(뒤집기)|sort_lines(줄 정렬)|dedup_lines(중복 줄 제거)|trim_lines(줄별 공백 제거).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string' },
+        op: { type: 'string', enum: ['upper', 'lower', 'reverse', 'sort_lines', 'dedup_lines', 'trim_lines'] },
+      },
+      required: ['text', 'op'],
+    },
+  },
+  {
+    name: 'percent',
+    description: '비율·퍼센트 계산. part·whole을 주면 part가 whole의 몇 %인지, percent·of를 주면 of의 percent%가 얼마인지.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        part: { type: 'number' },
+        whole: { type: 'number' },
+        percent: { type: 'number' },
+        of: { type: 'number' },
+      },
+    },
+  },
+  {
     name: 'memo',
     description:
       '단계 간 정보 보관. action=save|load|list|clear. save/load에는 key가 필요. save에는 value도. 여러 도구를 이어 쓸 때 중간 결과를 저장.',
@@ -421,6 +644,46 @@ export const TOOL_LABELS = {
     emoji: '🎲',
     label: '랜덤뽑기',
     desc: '목록에서 무작위로 뽑거나 정해진 범위의 난수를 생성. 발표자·자리 추첨 등.',
+  },
+  base_convert: {
+    emoji: '🔢',
+    label: '진법변환',
+    desc: '2·8·10·16진수 사이 변환. 예: 1010(2진수)→10, 255→FF. 컴퓨터가 숫자를 다루는 방식 체험.',
+  },
+  json_format: {
+    emoji: '📋',
+    label: 'JSON정리',
+    desc: 'JSON이 올바른지 검사하고 보기 좋게 정렬. 개발에서 데이터를 주고받는 형식.',
+  },
+  regex_test: {
+    emoji: '🧪',
+    label: '정규식',
+    desc: '패턴(정규식)으로 글에서 원하는 부분을 모두 찾기. 검색·추출의 핵심 코딩 도구.',
+  },
+  color_convert: {
+    emoji: '🎨',
+    label: '색상변환',
+    desc: 'HEX↔RGB 색상 코드 변환. 예: #4f46e5 ↔ rgb(79,70,229). 디자인·웹 코딩에 사용.',
+  },
+  base64: {
+    emoji: '🔐',
+    label: 'Base64',
+    desc: '텍스트를 Base64로 인코딩/디코딩. 데이터를 실어 나르는 코딩 인코딩 방식.',
+  },
+  char_code: {
+    emoji: '🔡',
+    label: '유니코드',
+    desc: '글자를 유니코드 번호(U+코드)로 변환. 한글·이모지도 컴퓨터엔 숫자임을 체험.',
+  },
+  text_transform: {
+    emoji: '🔠',
+    label: '텍스트변환',
+    desc: '대/소문자·뒤집기·줄 정렬·중복 제거 등 텍스트 가공.',
+  },
+  percent: {
+    emoji: '％',
+    label: '비율계산',
+    desc: 'part가 whole의 몇 %인지, 또는 어떤 값의 몇 %가 얼마인지 계산.',
   },
   memo: {
     emoji: '🗒',
