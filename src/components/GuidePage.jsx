@@ -40,7 +40,7 @@ export default function GuidePage() {
           <ul style={{ paddingLeft: 18, lineHeight: 1.9 }}>
             <li><strong>미니 에이전트 프로젝트 70%</strong> — 기획 25 / 구현 25 / 발표 20
               <ul style={{ paddingLeft: 16 }}>
-                <li className="muted small">기획: 도구 4종으로 실제 풀리는 현실적 미션인가 / 사용자·상황이 분명한가</li>
+                <li className="muted small">기획: 여러 도구로 실제 풀리는 현실적 미션인가 / 사용자·상황이 분명한가</li>
                 <li className="muted small">구현: 프롬프트가 실제로 작동하는가 / 단계가 매끄럽게 이어지는가 / 막혔을 때 수정한 흔적</li>
                 <li className="muted small">발표: 본인 에이전트 소개 + 갤러리 코멘트·공개 토론의 명료성 / 에이전트의 쓸모 설명</li>
               </ul>

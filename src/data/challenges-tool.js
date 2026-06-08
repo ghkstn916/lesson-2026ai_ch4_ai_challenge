@@ -28,7 +28,7 @@ export const TOOL_CHALLENGES = [
       '오늘이 2026년 5월 25일이고 2027학년도 수능이 2026년 11월 19일이야. 며칠 남았어?',
       '12345 곱하기 6789가 정확히 얼마야?',
     ],
-    expectedTools: ['calc', 'date_diff'],
+    expectedTools: ['calc', 'stats', 'date_diff'],
     hint: 'AI가 자체 지식으로 답하지 말고 반드시 도구를 쓰도록 "계산기로 정확히" 같은 지시를 넣어보세요.',
   },
   {

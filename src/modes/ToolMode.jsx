@@ -155,14 +155,21 @@ export default function ToolMode() {
     <StudentLayout needKey="anthropic" title="4차시 도구">
       <ModeIntro modeKey="tool" />
 
-      {/* 도구 4종 안내 */}
-      <div className="card-sm" style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        <span className="muted small" style={{ marginRight: 4 }}>플랫폼이 미리 제공하는 도구:</span>
-        {Object.entries(TOOL_LABELS).map(([k, v]) => (
-          <span key={k} className="tag" style={{ padding: '4px 10px', fontSize: '0.85rem', background: 'var(--surface2)' }}>
-            {v.emoji} {v.label} <code style={{ opacity: 0.6 }}>{k}</code>
-          </span>
-        ))}
+      {/* 플랫폼 제공 도구 안내 (설명 포함) */}
+      <div className="card-sm" style={{ marginBottom: 16 }}>
+        <p className="muted small" style={{ fontWeight: 600, marginBottom: 8 }}>
+          🧰 플랫폼이 미리 제공하는 도구 {Object.keys(TOOL_LABELS).length}종 — AI가 질문에 맞춰 <strong>자동으로 골라</strong> 씁니다
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
+          {Object.entries(TOOL_LABELS).map(([k, v]) => (
+            <div key={k} className="card-sm" style={{ background: 'var(--surface2)', padding: '8px 10px' }}>
+              <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                {v.emoji} {v.label} <code style={{ opacity: 0.55, fontSize: '0.72rem' }}>{k}</code>
+              </div>
+              <div className="muted" style={{ fontSize: '0.78rem', marginTop: 2, lineHeight: 1.45 }}>{v.desc}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* 단계 진행 바 */}
