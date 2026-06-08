@@ -119,7 +119,7 @@ export default function VisualMode() {
                       justifyContent: 'flex-start',
                       marginTop: 4,
                       padding: '6px 8px',
-                      fontSize: '0.85rem',
+                      fontSize: '0.95rem',
                       background: selected ? 'var(--accent)' : 'var(--surface2)',
                       borderColor: selected ? 'var(--accent)' : 'var(--border)',
                       color: selected ? 'white' : 'var(--text)',
@@ -148,7 +148,7 @@ export default function VisualMode() {
             <p className="small" style={{ color: 'var(--warning)', marginTop: 8 }}>
               💡 {challenge.hint}
             </p>
-            <p className="muted small" style={{ marginTop: 10, fontSize: '0.8rem' }}>
+            <p className="muted small" style={{ marginTop: 10, fontSize: '0.9rem' }}>
               📌 시도해도 자동 저장되지 않습니다. 마음에 드는 결과만 [최종 제출] 버튼으로 제출하세요.
               {submittedCount > 0 && ` · 이미 제출한 결과 ${submittedCount}개`}
             </p>
@@ -254,7 +254,7 @@ function AttemptCard({ attempt, highlight, compact, onSubmit }) {
               {prompt}
             </div>
             {evaluation?.feedback && (
-              <div className="muted small" style={{ fontSize: '0.78rem', marginTop: 2 }}>
+              <div className="muted small" style={{ fontSize: '0.88rem', marginTop: 2 }}>
                 {evaluation.feedback.slice(0, 80)}
               </div>
             )}
@@ -265,7 +265,7 @@ function AttemptCard({ attempt, highlight, compact, onSubmit }) {
             disabled={submitted}
             style={{
               padding: '6px 12px',
-              fontSize: '0.85rem',
+              fontSize: '0.95rem',
               background: submitted ? 'var(--success)' : 'var(--accent)',
               borderColor: submitted ? 'var(--success)' : 'var(--accent)',
               color: 'white',
@@ -302,7 +302,7 @@ function AttemptCard({ attempt, highlight, compact, onSubmit }) {
           { k: 'algorithm', l: '알고리즘' },
         ].map(({ k, l }) => (
           <div key={k}>
-            <div className="row" style={{ justifyContent: 'space-between', fontSize: '0.75rem' }}>
+            <div className="row" style={{ justifyContent: 'space-between', fontSize: '0.86rem' }}>
               <span className="muted">{l}</span>
               <span>{evaluation?.ct_scores?.[k] ?? 0}/25</span>
             </div>

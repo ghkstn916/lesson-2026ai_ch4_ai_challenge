@@ -54,7 +54,7 @@ export default function CTOverview() {
         <button
           className="btn btn-ghost"
           onClick={() => setOpen(!open)}
-          style={{ fontSize: '0.8rem', padding: '2px 8px' }}
+          style={{ fontSize: '0.9rem', padding: '2px 8px' }}
         >
           {open ? '접기 ▲' : '펼치기 ▼'}
         </button>
@@ -87,13 +87,13 @@ export default function CTOverview() {
                 <span style={{ fontSize: '1.1rem', marginRight: 4 }}>{e.emoji}</span>
                 {e.title}
               </div>
-              <div className="muted small" style={{ marginTop: 4, fontSize: '0.82rem' }}>
+              <div className="muted small" style={{ marginTop: 4, fontSize: '0.92rem' }}>
                 {e.summary}
               </div>
               <div
                 style={{
                   marginTop: 8,
-                  fontSize: '0.78rem',
+                  fontSize: '0.88rem',
                   padding: '6px 8px',
                   background: 'var(--surface2)',
                   borderRadius: 4,
@@ -102,7 +102,7 @@ export default function CTOverview() {
               >
                 <strong style={{ color: e.color }}>예) </strong>{e.example}
               </div>
-              <div className="muted small" style={{ marginTop: 6, fontSize: '0.78rem' }}>
+              <div className="muted small" style={{ marginTop: 6, fontSize: '0.88rem' }}>
                 💡 {e.inPrompt}
               </div>
             </div>

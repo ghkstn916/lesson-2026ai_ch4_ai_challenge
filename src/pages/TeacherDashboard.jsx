@@ -104,10 +104,10 @@ function Dashboard({ onLogout }) {
         {lastLoadedAt && (
           <span className="muted small">갱신 {lastLoadedAt.toLocaleTimeString()}</span>
         )}
-        <button className="btn btn-ghost" onClick={load} style={{ fontSize: '0.85rem' }}>
+        <button className="btn btn-ghost" onClick={load} style={{ fontSize: '0.95rem' }}>
           🔄 새로고침
         </button>
-        <button className="btn btn-ghost" onClick={onLogout} style={{ fontSize: '0.85rem' }}>
+        <button className="btn btn-ghost" onClick={onLogout} style={{ fontSize: '0.95rem' }}>
           로그아웃
         </button>
       </header>
@@ -134,7 +134,7 @@ function Dashboard({ onLogout }) {
             onClick={() => setModeFilter('all')}
             style={{
               padding: '4px 10px',
-              fontSize: '0.85rem',
+              fontSize: '0.95rem',
               background: modeFilter === 'all' ? 'var(--accent)' : 'var(--surface2)',
               borderColor: modeFilter === 'all' ? 'var(--accent)' : 'var(--border)',
               color: modeFilter === 'all' ? 'white' : 'var(--text)',
@@ -149,7 +149,7 @@ function Dashboard({ onLogout }) {
               onClick={() => setModeFilter(m.key)}
               style={{
                 padding: '4px 10px',
-                fontSize: '0.85rem',
+                fontSize: '0.95rem',
                 background: modeFilter === m.key ? 'var(--accent)' : 'var(--surface2)',
                 borderColor: modeFilter === m.key ? 'var(--accent)' : 'var(--border)',
                 color: modeFilter === m.key ? 'white' : 'var(--text)',
@@ -282,7 +282,7 @@ function ChallengeGroupedView({ items, modeFilter, onChange }) {
                           </span>
                         )}
                       </div>
-                      <div className="muted small" style={{ marginTop: 2, fontSize: '0.78rem' }}>
+                      <div className="muted small" style={{ marginTop: 2, fontSize: '0.88rem' }}>
                         {modeFilter !== 'all' && (
                           <span>{mode.sessionNumber}차시 · {mode.title} · </span>
                         )}
@@ -296,7 +296,7 @@ function ChallengeGroupedView({ items, modeFilter, onChange }) {
                           background: 'var(--warning)',
                           color: 'white',
                           padding: '3px 10px',
-                          fontSize: '0.75rem',
+                          fontSize: '0.86rem',
                         }}
                       >
                         🔒 {privateCount}
@@ -308,12 +308,12 @@ function ChallengeGroupedView({ items, modeFilter, onChange }) {
                         background: 'var(--accent)',
                         color: 'white',
                         padding: '3px 10px',
-                        fontSize: '0.8rem',
+                        fontSize: '0.9rem',
                       }}
                     >
                       {attempts.length}개
                     </span>
-                    <span className="muted" style={{ fontSize: '0.85rem' }}>{open ? '▲' : '▼'}</span>
+                    <span className="muted" style={{ fontSize: '0.95rem' }}>{open ? '▲' : '▼'}</span>
                   </button>
                   {open && (
                     <div style={{ padding: '0 16px 16px', borderTop: '1px solid var(--border)' }}>
@@ -372,7 +372,7 @@ function AttemptRow({ a, onChange }) {
               style={{
                 background: 'var(--warning)',
                 color: 'white',
-                fontSize: '0.7rem',
+                fontSize: '0.84rem',
                 padding: '2px 8px',
               }}
               title="공개 갤러리에 노출되지 않은 비공개 제출 — 학생이 선생님께만 제출함"
@@ -386,7 +386,7 @@ function AttemptRow({ a, onChange }) {
               style={{
                 background: '#9333ea',
                 color: 'white',
-                fontSize: '0.7rem',
+                fontSize: '0.84rem',
                 padding: '2px 8px',
               }}
             >
@@ -407,7 +407,7 @@ function AttemptRow({ a, onChange }) {
             background: 'rgba(245, 158, 11, 0.12)',
             borderLeft: '2px solid var(--warning)',
             borderRadius: 4,
-            fontSize: '0.85rem',
+            fontSize: '0.95rem',
             color: 'var(--text)',
           }}
         >
@@ -420,12 +420,12 @@ function AttemptRow({ a, onChange }) {
         <strong>P:</strong> {a.prompt.slice(0, 200)}{a.prompt.length > 200 && '...'}
       </div>
       {a.output_text && (
-        <div style={{ marginTop: 4, fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
+        <div style={{ marginTop: 4, fontSize: '0.95rem', whiteSpace: 'pre-wrap' }}>
           <strong>A:</strong> {a.output_text.slice(0, 240)}{a.output_text.length > 240 && '...'}
         </div>
       )}
       {a.reflection && (
-        <div style={{ marginTop: 4, fontSize: '0.8rem', color: 'var(--warning)', whiteSpace: 'pre-wrap' }}>
+        <div style={{ marginTop: 4, fontSize: '0.9rem', color: 'var(--warning)', whiteSpace: 'pre-wrap' }}>
           💭 {a.reflection}
         </div>
       )}

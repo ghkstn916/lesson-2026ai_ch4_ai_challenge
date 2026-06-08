@@ -28,7 +28,7 @@ export default function ModeIntro({ modeKey }) {
         <button
           className="btn btn-ghost"
           onClick={() => setOpen(!open)}
-          style={{ fontSize: '0.8rem', padding: '2px 8px' }}
+          style={{ fontSize: '0.9rem', padding: '2px 8px' }}
         >
           {open ? '접기 ▲' : '펼치기 ▼'}
         </button>
@@ -38,7 +38,7 @@ export default function ModeIntro({ modeKey }) {
 
       {open && (
         <>
-          <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginTop: 14, color: 'var(--text-muted)' }}>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginTop: 14, color: 'var(--text-muted)' }}>
             🎯 오늘의 목표
           </h3>
           <ul style={{ paddingLeft: 18, lineHeight: 1.7, marginTop: 4 }}>

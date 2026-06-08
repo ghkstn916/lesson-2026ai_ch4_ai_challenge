@@ -425,7 +425,7 @@ export default function WarmupMode() {
                 {VARIANT_LABELS.filter((v) => confirmed[v.key]).length}/4 확인됨
               </span>
             </div>
-            <p className="muted small" style={{ marginBottom: 14, fontSize: '0.8rem' }}>
+            <p className="muted small" style={{ marginBottom: 14, fontSize: '0.9rem' }}>
               내용을 수정하면 확인 상태가 풀려요. 4개가 모두 확인되면 아래 [AI에게 보내기]가 활성화됩니다.
             </p>
 
@@ -449,9 +449,9 @@ export default function WarmupMode() {
           {challenge.hasAttachment && (
             <div className="card" style={{ borderLeft: '4px solid var(--accent)' }}>
               <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>
-                📎 진로·직업 자료 첨부 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 6 }}>(선택, 강력 권장)</span>
+                📎 진로·직업 자료 첨부 <span style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginLeft: 6 }}>(선택, 강력 권장)</span>
               </p>
-              <p className="muted small" style={{ marginBottom: 12, fontSize: '0.85rem' }}>
+              <p className="muted small" style={{ marginBottom: 12, fontSize: '0.95rem' }}>
                 관심 있는 <strong>진로·직업에 대한 자료</strong>를 텍스트로 붙이거나 관련 URL을 입력하세요.
                 직업 소개 페이지(워크넷·커리어넷), 관련 뉴스 기사, 종사자 인터뷰 등이 좋아요.
                 AI가 자료의 사실에 근거해서 진로 중심 자기소개를 정리합니다.
@@ -512,7 +512,7 @@ export default function WarmupMode() {
                     padding: '6px 10px',
                     background: 'rgba(34, 197, 94, 0.1)',
                     borderRadius: 'var(--radius)',
-                    fontSize: '0.82rem',
+                    fontSize: '0.92rem',
                   }}
                 >
                   ✅ 자료 {attachText.trim().length.toLocaleString()}자 첨부됨. ②에서 보내면 함께 전송됩니다.
@@ -528,7 +528,7 @@ export default function WarmupMode() {
           >
             <div className="row" style={{ alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
               <p style={{ fontWeight: 700, fontSize: '1rem' }}>② 완성 프롬프트</p>
-              <span className="small muted" style={{ fontSize: '0.8rem' }}>
+              <span className="small muted" style={{ fontSize: '0.9rem' }}>
                 4요소가 합쳐져 AI에게 보낼 한 덩어리
               </span>
             </div>
@@ -583,7 +583,7 @@ export default function WarmupMode() {
               {allowChoose && (
                 <p
                   className="small muted"
-                  style={{ marginTop: 10, fontSize: '0.8rem' }}
+                  style={{ marginTop: 10, fontSize: '0.9rem' }}
                 >
                   💡 모두 보는 갤러리에 등록하거나, 선생님께만 보이게 제출할 수 있어요.
                 </p>
@@ -607,7 +607,7 @@ export default function WarmupMode() {
               <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>
                 ④ 한 요소만 바꿔서 변형 실험
               </p>
-              <p className="muted small" style={{ marginBottom: 14, fontSize: '0.85rem' }}>
+              <p className="muted small" style={{ marginBottom: 14, fontSize: '0.95rem' }}>
                 4요소 중 한 가지만 바꿔보면 결과가 어떻게 달라질까요? 기본은 <strong>맥락</strong> —
                 다른 요소도 골라 시도해보세요.
               </p>
@@ -625,7 +625,7 @@ export default function WarmupMode() {
                       }}
                       style={{
                         padding: '6px 12px',
-                        fontSize: '0.85rem',
+                        fontSize: '0.95rem',
                         background: variantKey === v.key ? v.color : 'var(--surface2)',
                         borderColor: variantKey === v.key ? v.color : 'var(--border)',
                         color: variantKey === v.key ? 'white' : 'var(--text)',
@@ -642,7 +642,7 @@ export default function WarmupMode() {
                   padding: 10,
                   background: 'var(--bg)',
                   borderRadius: 'var(--radius)',
-                  fontSize: '0.85rem',
+                  fontSize: '0.95rem',
                   marginBottom: 10,
                 }}
               >
@@ -695,7 +695,7 @@ export default function WarmupMode() {
                       onClick={() => setVariantValue(s)}
                       style={{
                         padding: '3px 8px',
-                        fontSize: '0.75rem',
+                        fontSize: '0.86rem',
                         border: '1px solid var(--border)',
                         background: 'transparent',
                         color: 'var(--text-muted)',
@@ -770,7 +770,7 @@ export default function WarmupMode() {
               <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>
                 ⑤ 관찰 메모 — 무엇이 달라졌나요?
               </p>
-              <p className="muted small" style={{ marginBottom: 12, fontSize: '0.85rem' }}>
+              <p className="muted small" style={{ marginBottom: 12, fontSize: '0.95rem' }}>
                 ③ 기본 결과와 ④ 변형 결과를 비교하며 어떤 요소가 결과에 어떤 차이를 만들었는지 짧게 메모해보세요.
               </p>
               <textarea
@@ -814,7 +814,7 @@ export default function WarmupMode() {
               <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 6 }}>
                 ⑥ {ar.title}
                 {addForcePrivate && (
-                  <span style={{ fontSize: '0.7rem', color: 'var(--warning)', marginLeft: 6 }}>
+                  <span style={{ fontSize: '0.84rem', color: 'var(--warning)', marginLeft: 6 }}>
                     🔒 비공개
                   </span>
                 )}
@@ -832,7 +832,7 @@ export default function WarmupMode() {
                     color: 'var(--warning)',
                     borderRadius: 'var(--radius)',
                     marginBottom: 12,
-                    fontSize: '0.82rem',
+                    fontSize: '0.92rem',
                   }}
                 >
                   🔒 이 결과는 <strong>공개 갤러리에 올라가지 않고 선생님만 볼 수 있어요.</strong> D-30에 본인에게 전달될
@@ -896,7 +896,7 @@ export default function WarmupMode() {
                       background: 'rgba(245, 158, 11, 0.1)',
                       borderLeft: '2px solid var(--warning)',
                       borderRadius: 4,
-                      fontSize: '0.85rem',
+                      fontSize: '0.95rem',
                       marginTop: 8,
                       marginBottom: 10,
                       whiteSpace: 'pre-wrap',
@@ -954,7 +954,7 @@ export default function WarmupMode() {
             <div className="attempt" key={a.id}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
                 {a.self_check?.type === 'observation' ? (
-                  <span className="tag" style={{ background: '#9333ea', color: 'white', fontSize: '0.7rem' }}>
+                  <span className="tag" style={{ background: '#9333ea', color: 'white', fontSize: '0.84rem' }}>
                     관찰 메모
                   </span>
                 ) : (
@@ -962,7 +962,7 @@ export default function WarmupMode() {
                     const val = a.self_check?.[v.key]
                     if (!val) return null
                     return (
-                      <span key={v.key} className={`tag ${v.key}`} style={{ fontSize: '0.7rem' }}>
+                      <span key={v.key} className={`tag ${v.key}`} style={{ fontSize: '0.84rem' }}>
                         {v.label}: {val.length > 18 ? val.slice(0, 18) + '…' : val}
                       </span>
                     )
@@ -976,7 +976,7 @@ export default function WarmupMode() {
                 <div style={{ fontSize: '0.88rem', whiteSpace: 'pre-wrap' }}>{a.output_text}</div>
               )}
               {a.reflection && (
-                <div style={{ fontSize: '0.85rem', marginTop: 4, color: 'var(--warning)', whiteSpace: 'pre-wrap' }}>
+                <div style={{ fontSize: '0.95rem', marginTop: 4, color: 'var(--warning)', whiteSpace: 'pre-wrap' }}>
                   💭 {a.reflection}
                 </div>
               )}
@@ -1100,7 +1100,7 @@ function PartInput({ meta, value, confirmed, suggestions, onChange, onConfirm, o
         >
           {meta.label}
         </span>
-        <span className="muted small" style={{ fontSize: '0.75rem' }}>
+        <span className="muted small" style={{ fontSize: '0.86rem' }}>
           {confirmed ? '✅ 확인됨' : '입력 후 [확인] 클릭'}
         </span>
       </div>
@@ -1131,7 +1131,7 @@ function PartInput({ meta, value, confirmed, suggestions, onChange, onConfirm, o
           disabled={!trimmed || confirmed}
           style={{
             padding: '8px 14px',
-            fontSize: '0.85rem',
+            fontSize: '0.95rem',
             background: confirmed ? meta.color : trimmed ? 'var(--accent)' : 'var(--surface2)',
             borderColor: confirmed ? meta.color : trimmed ? 'var(--accent)' : 'var(--border)',
             color: confirmed || trimmed ? 'white' : 'var(--text-muted)',
@@ -1151,7 +1151,7 @@ function PartInput({ meta, value, confirmed, suggestions, onChange, onConfirm, o
               onClick={() => onClickSuggestion(s)}
               style={{
                 padding: '3px 8px',
-                fontSize: '0.75rem',
+                fontSize: '0.86rem',
                 background: value === s ? meta.color : 'transparent',
                 borderColor: 'var(--border)',
                 color: value === s ? 'white' : 'var(--text-muted)',

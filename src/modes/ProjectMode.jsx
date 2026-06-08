@@ -337,7 +337,7 @@ function RecapCard() {
     <div className="card" style={{ marginBottom: 16, borderLeft: '4px solid var(--success)' }}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <p style={{ fontWeight: 700 }}>🌳 단원 전체 회수 — 1차시부터 5차시까지의 한 줄</p>
-        <button className="btn btn-ghost" onClick={() => setOpen(!open)} style={{ fontSize: '0.8rem' }}>
+        <button className="btn btn-ghost" onClick={() => setOpen(!open)} style={{ fontSize: '0.9rem' }}>
           {open ? '접기' : '펼치기'}
         </button>
       </div>
@@ -351,7 +351,7 @@ function RecapCard() {
                   background: 'var(--surface2)',
                   borderRadius: 13,
                   textAlign: 'center',
-                  fontSize: '0.78rem',
+                  fontSize: '0.88rem',
                   fontWeight: 700,
                 }}
               >
@@ -388,7 +388,7 @@ function PresentTab({ plan, demoPrompt, setDemoPrompt, trace, finalAnswer, loadi
             </p>
             <div style={{ marginTop: 8 }}>
               {(plan.tools_used || []).map((t) => (
-                <span key={t} className="tag" style={{ fontSize: '0.72rem' }}>
+                <span key={t} className="tag" style={{ fontSize: '0.84rem' }}>
                   {TOOL_LABELS[t]?.emoji} {TOOL_LABELS[t]?.label}
                 </span>
               ))}
@@ -429,7 +429,7 @@ function PresentTab({ plan, demoPrompt, setDemoPrompt, trace, finalAnswer, loadi
           <div className="card-sm">
             <p className="muted small">발표 등록 — {history.length}회</p>
             {history.slice(0, 3).map((a) => (
-              <div className="attempt" key={a.id} style={{ fontSize: '0.82rem' }}>
+              <div className="attempt" key={a.id} style={{ fontSize: '0.92rem' }}>
                 <span className="muted">{new Date(a.created_at).toLocaleTimeString()}</span>
                 <div className="muted small" style={{ marginTop: 4 }}>
                   {a.prompt.slice(0, 80)}{a.prompt.length > 80 && '...'}
@@ -515,7 +515,7 @@ function GalleryTab({ attempts, comments, studentId, loading, onComment, myComme
               {a.tool_trace && (
                 <div style={{ marginTop: 6 }}>
                   {a.tool_trace.filter((s) => s.kind === 'tool').map((s, i) => (
-                    <span key={i} className="tag" style={{ fontSize: '0.7rem' }}>
+                    <span key={i} className="tag" style={{ fontSize: '0.84rem' }}>
                       {TOOL_LABELS[s.name]?.emoji} {s.name}
                     </span>
                   ))}
@@ -526,7 +526,7 @@ function GalleryTab({ attempts, comments, studentId, loading, onComment, myComme
                 <p className="muted small" style={{ marginBottom: 6 }}>💭 코멘트</p>
                 {myCmt.length === 0 && <p className="muted small">아직 코멘트가 없어요.</p>}
                 {myCmt.map((c) => (
-                  <div key={c.id} style={{ fontSize: '0.85rem', marginTop: 4 }}>
+                  <div key={c.id} style={{ fontSize: '0.95rem', marginTop: 4 }}>
                     <strong>{c.author?.name}:</strong> {c.content}
                   </div>
                 ))}
@@ -545,7 +545,7 @@ function GalleryTab({ attempts, comments, studentId, loading, onComment, myComme
                         borderRadius: 'var(--radius)',
                         padding: '6px 10px',
                         color: 'var(--text)',
-                        fontSize: '0.85rem',
+                        fontSize: '0.95rem',
                       }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
@@ -561,7 +561,7 @@ function GalleryTab({ attempts, comments, studentId, loading, onComment, myComme
                         setDrafts({ ...drafts, [a.id]: '' })
                       }}
                       disabled={!draft.trim()}
-                      style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                      style={{ padding: '6px 12px', fontSize: '0.95rem' }}
                     >
                       등록
                     </button>
@@ -638,7 +638,7 @@ function DiscussionTab({ answers, setAnswers, onPost, saving, savedAt, error, po
                   const mine = p.student?.id === studentId
                   return (
                     <div key={p.id} style={{ borderLeft: `3px solid ${mine ? 'var(--accent)' : 'var(--border)'}`, paddingLeft: 10 }}>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>
+                      <div style={{ fontSize: '0.92rem', fontWeight: 600 }}>
                         {p.student?.student_number} {p.student?.name}
                         {mine && <span className="tag" style={{ marginLeft: 6 }}>나</span>}
                       </div>
@@ -821,11 +821,11 @@ function TraceView({ trace }) {
             emoji={label?.emoji || '🛠'}
             label={`도구 — ${label?.label || step.name}`}
           >
-            <div style={{ fontSize: '0.82rem' }}>
-              <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.78rem', overflowX: 'auto' }}>
+            <div style={{ fontSize: '0.92rem' }}>
+              <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.88rem', overflowX: 'auto' }}>
                 {JSON.stringify(step.input, null, 2)}
               </pre>
-              <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.78rem', overflowX: 'auto', marginTop: 4 }}>
+              <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.88rem', overflowX: 'auto', marginTop: 4 }}>
                 {JSON.stringify(step.output, null, 2)}
               </pre>
             </div>
@@ -840,7 +840,7 @@ function TraceView({ trace }) {
 function Step({ color, emoji, label, children }) {
   return (
     <div style={{ borderLeft: `3px solid ${color}`, paddingLeft: 12, marginLeft: 4 }}>
-      <div style={{ fontSize: '0.78rem', color, fontWeight: 700, marginBottom: 4 }}>
+      <div style={{ fontSize: '0.88rem', color, fontWeight: 700, marginBottom: 4 }}>
         {emoji} {label}
       </div>
       <div>{children}</div>

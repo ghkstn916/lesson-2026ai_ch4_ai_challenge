@@ -200,12 +200,12 @@ export default function ImageMode() {
             {challenge.extraHint && (
               <div
                 className="card-sm"
-                style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.82rem', whiteSpace: 'pre-wrap' }}
+                style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.92rem', whiteSpace: 'pre-wrap' }}
               >
                 {challenge.extraHint}
               </div>
             )}
-            <p className="muted small" style={{ marginTop: 10, fontSize: '0.82rem' }}>
+            <p className="muted small" style={{ marginTop: 10, fontSize: '0.92rem' }}>
               💡 각 요소는 <strong>단어·명사로 적어도 OK</strong> — 아래 “✨ 문장으로 다듬기”가 이미지 프롬프트 문장으로 바꿔줍니다.
             </p>
           </div>
@@ -237,7 +237,7 @@ export default function ImageMode() {
           {totalAttempts >= SOFT_LIMIT && (
             <div
               className="card-sm"
-              style={{ background: 'rgba(245, 158, 11, 0.1)', borderColor: 'var(--warning)', color: 'var(--warning)', fontSize: '0.85rem' }}
+              style={{ background: 'rgba(245, 158, 11, 0.1)', borderColor: 'var(--warning)', color: 'var(--warning)', fontSize: '0.95rem' }}
             >
               💡 시도 {totalAttempts}회 — 새 그림을 만들기 전에 잠시 멈추고
               5요소(주제·스타일·구도·라이팅·디테일) 중 무엇이 부족했는지 다시 들여다보면 큰 차이가 있어요.
@@ -269,7 +269,7 @@ export default function ImageMode() {
           <div className="card" style={{ borderLeft: '4px solid var(--accent)' }}>
             <div className="row" style={{ alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
               <p style={{ fontWeight: 700, fontSize: '1rem' }}>② 완성 프롬프트 <span className="muted small" style={{ fontWeight: 400 }}>— 직접 고칠 수 있어요</span></p>
-              {dirty && <span className="muted small" style={{ fontSize: '0.75rem' }}>✏️ 직접 편집 중</span>}
+              {dirty && <span className="muted small" style={{ fontSize: '0.86rem' }}>✏️ 직접 편집 중</span>}
             </div>
 
             <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -366,7 +366,7 @@ function ElementInput({ meta, value, suggestions, onChange }) {
     >
       <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
         <span className="tag" style={{ background: meta.color, color: 'white', fontWeight: 700 }}>{meta.label}</span>
-        <span className="muted small" style={{ fontSize: '0.72rem' }}>{filled ? '입력됨' : '단어·명사로 적어도 OK'}</span>
+        <span className="muted small" style={{ fontSize: '0.84rem' }}>{filled ? '입력됨' : '단어·명사로 적어도 OK'}</span>
       </div>
       <input
         type="text"
@@ -416,7 +416,7 @@ function ImageGuide() {
     <div className="card" style={{ marginBottom: 16, borderLeft: '4px solid var(--accent)' }}>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <p style={{ fontWeight: 700 }}>📐 구도·요소 자세히 보기 — 프롬프트에 넣을 어휘 사전</p>
-        <button className="btn btn-ghost" onClick={() => setOpen(!open)} style={{ fontSize: '0.8rem' }}>
+        <button className="btn btn-ghost" onClick={() => setOpen(!open)} style={{ fontSize: '0.9rem' }}>
           {open ? '접기' : '펼치기'}
         </button>
       </div>
@@ -432,7 +432,7 @@ function ImageGuide() {
               {el.options && (
                 <div className="col" style={{ gap: 3, marginTop: 6 }}>
                   {el.options.map((o) => (
-                    <div key={o.name} style={{ fontSize: '0.82rem' }}>
+                    <div key={o.name} style={{ fontSize: '0.92rem' }}>
                       <strong>{o.name}</strong>
                       <span className="muted"> — {o.desc}</span>
                     </div>
@@ -450,7 +450,7 @@ function ImageGuide() {
           ))}
           <div
             className="card-sm"
-            style={{ background: 'rgba(245,158,11,0.1)', borderColor: 'var(--warning)', fontSize: '0.82rem' }}
+            style={{ background: 'rgba(245,158,11,0.1)', borderColor: 'var(--warning)', fontSize: '0.92rem' }}
           >
             ✍️ <strong>포스터·글자 미션 팁</strong> — {IMAGE_GUIDE.posterNote}
           </div>

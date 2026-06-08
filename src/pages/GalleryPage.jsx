@@ -25,7 +25,7 @@ class CardErrorBoundary extends Component {
           <p className="muted small" style={{ color: 'var(--danger)' }}>
             ⚠ 이 작품을 표시할 수 없어요
           </p>
-          <p className="muted small" style={{ fontSize: '0.72rem', marginTop: 4 }}>
+          <p className="muted small" style={{ fontSize: '0.84rem', marginTop: 4 }}>
             {String(this.state.err?.message || this.state.err).slice(0, 120)}
           </p>
         </div>
@@ -79,7 +79,7 @@ function LazyVPython({ code }) {
             alignItems: 'center',
             justifyContent: 'center',
             color: 'var(--text-muted)',
-            fontSize: '0.85rem',
+            fontSize: '0.95rem',
           }}
         >
           📦 스크롤하면 3D 장면이 표시돼요
@@ -167,7 +167,7 @@ export default function GalleryPage() {
         </Link>
         <span className="muted small">/ 학급 공개 갤러리</span>
         <span className="spacer" />
-        <Link to="/student" className="btn btn-ghost" style={{ fontSize: '0.85rem' }}>
+        <Link to="/student" className="btn btn-ghost" style={{ fontSize: '0.95rem' }}>
           ← 내 화면으로
         </Link>
       </header>
@@ -185,7 +185,7 @@ export default function GalleryPage() {
               onClick={() => setMode(m.key)}
               style={{
                 padding: '6px 10px',
-                fontSize: '0.85rem',
+                fontSize: '0.95rem',
                 background: mode === m.key ? 'var(--accent)' : 'var(--surface2)',
                 borderColor: mode === m.key ? 'var(--accent)' : 'var(--border)',
                 color: mode === m.key ? 'white' : 'var(--text)',
@@ -238,7 +238,7 @@ export default function GalleryPage() {
                       )}
                     </div>
                     {ch?.description && (
-                      <div className="muted small" style={{ marginTop: 2, fontSize: '0.78rem' }}>
+                      <div className="muted small" style={{ marginTop: 2, fontSize: '0.88rem' }}>
                         {ch.description.slice(0, 90)}{ch.description.length > 90 && '…'}
                       </div>
                     )}
@@ -249,12 +249,12 @@ export default function GalleryPage() {
                       background: 'var(--accent)',
                       color: 'white',
                       padding: '4px 12px',
-                      fontSize: '0.85rem',
+                      fontSize: '0.95rem',
                     }}
                   >
                     {attempts.length}개
                   </span>
-                  <span className="muted" style={{ fontSize: '0.85rem' }}>{open ? '▲' : '▼'}</span>
+                  <span className="muted" style={{ fontSize: '0.95rem' }}>{open ? '▲' : '▼'}</span>
                 </button>
 
                 {open && (
@@ -340,12 +340,12 @@ function GalleryCard({ a, mode }) {
         </div>
       )}
       {outputText && mode !== 'visual' && (
-        <div style={{ marginTop: 6, fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
+        <div style={{ marginTop: 6, fontSize: '0.95rem', whiteSpace: 'pre-wrap' }}>
           {outputText.slice(0, 240)}{outputText.length > 240 && '...'}
         </div>
       )}
       {reflection && (
-        <div style={{ marginTop: 6, fontSize: '0.8rem', color: 'var(--warning)' }}>
+        <div style={{ marginTop: 6, fontSize: '0.9rem', color: 'var(--warning)' }}>
           💭 {reflection}
         </div>
       )}

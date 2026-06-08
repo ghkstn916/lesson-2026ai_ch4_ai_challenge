@@ -30,12 +30,12 @@ export default function StudentLayout({ children, needKey = 'anthropic', title }
 
         <ApiKeyBar needed={needKey} />
 
-        <Link to="/gallery" className="btn btn-ghost" style={{ padding: '6px 10px', fontSize: '0.85rem' }}>
+        <Link to="/gallery" className="btn btn-ghost" style={{ padding: '6px 10px', fontSize: '0.95rem' }}>
           🖼 갤러리
         </Link>
         <button
           className="btn btn-ghost"
-          style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+          style={{ padding: '6px 10px', fontSize: '0.95rem' }}
           onClick={() => {
             if (confirm('로그아웃하면 학번·이름이 초기화됩니다. 진행할까요?')) {
               reset()

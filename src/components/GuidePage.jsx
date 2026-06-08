@@ -7,7 +7,7 @@ export default function GuidePage() {
         <Link to="/" className="brand" style={{ color: 'var(--text)' }}>🎓 AI 챌린지</Link>
         <span className="muted small">/ 교사 안내</span>
         <span className="spacer" />
-        <Link to="/teacher" className="btn btn-ghost" style={{ fontSize: '0.85rem' }}>교사 대시보드 →</Link>
+        <Link to="/teacher" className="btn btn-ghost" style={{ fontSize: '0.95rem' }}>교사 대시보드 →</Link>
       </header>
 
       <main className="container">

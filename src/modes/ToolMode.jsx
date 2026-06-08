@@ -163,10 +163,10 @@ export default function ToolMode() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
           {Object.entries(TOOL_LABELS).map(([k, v]) => (
             <div key={k} className="card-sm" style={{ background: 'var(--surface2)', padding: '8px 10px' }}>
-              <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                {v.emoji} {v.label} <code style={{ opacity: 0.55, fontSize: '0.72rem' }}>{k}</code>
+              <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                {v.emoji} {v.label} <code style={{ opacity: 0.55, fontSize: '0.84rem' }}>{k}</code>
               </div>
-              <div className="muted" style={{ fontSize: '0.78rem', marginTop: 2, lineHeight: 1.45 }}>{v.desc}</div>
+              <div className="muted" style={{ fontSize: '0.88rem', marginTop: 2, lineHeight: 1.45 }}>{v.desc}</div>
             </div>
           ))}
         </div>
@@ -185,26 +185,26 @@ export default function ToolMode() {
 
             <div
               className="card-sm"
-              style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.85rem', marginBottom: 10 }}
+              style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.95rem', marginBottom: 10 }}
             >
               🎯 <strong>이 단계 목표</strong> — {challenge.goal}
             </div>
 
             <p className="muted small" style={{ fontWeight: 600 }}>이렇게 해보세요</p>
-            <ol style={{ paddingLeft: 18, lineHeight: 1.7, fontSize: '0.85rem', marginTop: 4 }}>
+            <ol style={{ paddingLeft: 18, lineHeight: 1.7, fontSize: '0.95rem', marginTop: 4 }}>
               {challenge.doThis.map((d, i) => (
                 <li key={i} style={{ marginBottom: 2 }}>{d}</li>
               ))}
             </ol>
 
             <p className="muted small" style={{ fontWeight: 600, marginTop: 10 }}>예시 (클릭해 채우기)</p>
-            <ul style={{ paddingLeft: 18, lineHeight: 1.7, fontSize: '0.85rem', marginTop: 4 }}>
+            <ul style={{ paddingLeft: 18, lineHeight: 1.7, fontSize: '0.95rem', marginTop: 4 }}>
               {challenge.seedPrompts.map((p, i) => (
                 <li key={i}>
                   <button
                     className="btn btn-ghost"
                     onClick={() => setPrompt(p)}
-                    style={{ padding: 0, background: 'none', border: 'none', color: 'var(--accent-hover)', textAlign: 'left', fontSize: '0.85rem' }}
+                    style={{ padding: 0, background: 'none', border: 'none', color: 'var(--accent-hover)', textAlign: 'left', fontSize: '0.95rem' }}
                   >
                     {p}
                   </button>
@@ -214,7 +214,7 @@ export default function ToolMode() {
 
             <div className="row" style={{ flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
               {challenge.expectedTools.map((t) => (
-                <span key={t} className="tag" style={{ fontSize: '0.75rem', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)' }}>
+                <span key={t} className="tag" style={{ fontSize: '0.86rem', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)' }}>
                   예상 사용: {TOOL_LABELS[t]?.emoji} {TOOL_LABELS[t]?.label}
                 </span>
               ))}
@@ -278,7 +278,7 @@ export default function ToolMode() {
                       justifyContent: 'flex-start',
                       textAlign: 'left',
                       padding: '8px 10px',
-                      fontSize: '0.85rem',
+                      fontSize: '0.95rem',
                       background: obsChecks[i] ? 'rgba(34,197,94,0.12)' : 'var(--surface2)',
                       borderColor: obsChecks[i] ? 'var(--success)' : 'var(--border)',
                       color: 'var(--text)',
@@ -308,11 +308,11 @@ export default function ToolMode() {
             <div className="card-sm">
               <p className="muted small" style={{ marginBottom: 6 }}>이 단계 — {myForChallenge.length}회 등록 ✓</p>
               {myForChallenge.slice(0, 3).map((a) => (
-                <div className="attempt" key={a.id} style={{ fontSize: '0.82rem' }}>
+                <div className="attempt" key={a.id} style={{ fontSize: '0.92rem' }}>
                   <span className="muted">{new Date(a.created_at).toLocaleTimeString()}</span>
                   <div style={{ marginTop: 4 }}>
                     {(a.tool_trace || []).filter((s) => s.kind === 'tool').map((s, i) => (
-                      <span key={i} className="tag" style={{ fontSize: '0.7rem' }}>
+                      <span key={i} className="tag" style={{ fontSize: '0.84rem' }}>
                         {TOOL_LABELS[s.name]?.emoji} {s.name}
                       </span>
                     ))}
@@ -365,7 +365,7 @@ function Stepper({ challenges, current, doneIds, onPick }) {
               color: active ? 'white' : 'var(--text)',
             }}
           >
-            <span style={{ fontSize: '0.72rem', opacity: 0.85 }}>
+            <span style={{ fontSize: '0.84rem', opacity: 0.85 }}>
               {done ? '✓ 완료' : `단계 ${i + 1}`}
             </span>
             <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
@@ -405,13 +405,13 @@ function TraceView({ trace }) {
               emoji={label?.emoji || '🛠'}
               label={`도구 호출 — ${label?.label || step.name}`}
             >
-              <div style={{ fontSize: '0.82rem' }}>
+              <div style={{ fontSize: '0.92rem' }}>
                 <div className="muted">입력:</div>
-                <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.78rem', overflowX: 'auto' }}>
+                <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.88rem', overflowX: 'auto' }}>
                   {JSON.stringify(step.input, null, 2)}
                 </pre>
                 <div className="muted" style={{ marginTop: 4 }}>결과:</div>
-                <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.78rem', overflowX: 'auto', color: step.error ? 'var(--danger)' : 'inherit' }}>
+                <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.88rem', overflowX: 'auto', color: step.error ? 'var(--danger)' : 'inherit' }}>
                   {JSON.stringify(step.output, null, 2)}
                 </pre>
               </div>
@@ -427,7 +427,7 @@ function TraceView({ trace }) {
 function Step({ color, emoji, label, children }) {
   return (
     <div style={{ borderLeft: `3px solid ${color}`, paddingLeft: 12, marginLeft: 4 }}>
-      <div style={{ fontSize: '0.78rem', color, fontWeight: 700, marginBottom: 4, letterSpacing: '0.02em' }}>
+      <div style={{ fontSize: '0.88rem', color, fontWeight: 700, marginBottom: 4, letterSpacing: '0.02em' }}>
         {emoji} {label}
       </div>
       <div>{children}</div>

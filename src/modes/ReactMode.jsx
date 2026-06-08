@@ -383,7 +383,7 @@ function Stepper({ current, doneArr, onPick }) {
               color: active ? 'white' : 'var(--text)',
             }}
           >
-            <span style={{ fontSize: '0.7rem', opacity: 0.85 }}>{tag}</span>
+            <span style={{ fontSize: '0.84rem', opacity: 0.85 }}>{tag}</span>
             <span style={{ fontWeight: 700, fontSize: '0.86rem' }}>{s.emoji} {s.title}</span>
           </button>
         )
@@ -402,13 +402,13 @@ function StepConcept({ onUnderstood }) {
           <h3>🧠 ReAct 이해</h3>
           <div
             className="card-sm"
-            style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.85rem', margin: '8px 0 10px' }}
+            style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.95rem', margin: '8px 0 10px' }}
           >
             🎯 <strong>이 단계 목표</strong> — {CONCEPT.goal}
           </div>
 
           <p className="muted small" style={{ fontWeight: 600 }}>이렇게 해보세요</p>
-          <ol style={{ paddingLeft: 18, lineHeight: 1.7, fontSize: '0.85rem', marginTop: 4 }}>
+          <ol style={{ paddingLeft: 18, lineHeight: 1.7, fontSize: '0.95rem', marginTop: 4 }}>
             {CONCEPT.doThis.map((d, i) => <li key={i} style={{ marginBottom: 2 }}>{d}</li>)}
           </ol>
 
@@ -442,7 +442,7 @@ function StepConcept({ onUnderstood }) {
 
           <div
             className="card-sm"
-            style={{ marginTop: 12, background: 'rgba(245,158,11,0.1)', borderColor: 'var(--warning)', fontSize: '0.82rem' }}
+            style={{ marginTop: 12, background: 'rgba(245,158,11,0.1)', borderColor: 'var(--warning)', fontSize: '0.92rem' }}
           >
             💭 <strong>'생각'이 보이는 게 왜 중요할까?</strong> — {CONCEPT.thoughtNote}
           </div>
@@ -466,7 +466,7 @@ function ConceptDiagram() {
           <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <span
               className="tag"
-              style={{ background: n.c, color: 'white', fontSize: '0.82rem', padding: '4px 10px' }}
+              style={{ background: n.c, color: 'white', fontSize: '0.92rem', padding: '4px 10px' }}
             >
               {n.e} {n.t}
             </span>
@@ -491,7 +491,7 @@ function StepChallenge({ prompt, setPrompt, trace, finalAnswer, loading, error, 
 
           <div
             className="card-sm"
-            style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.85rem', margin: '8px 0 10px' }}
+            style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.95rem', margin: '8px 0 10px' }}
           >
             🎯 <strong>이 단계 목표</strong> — {REACT_CHALLENGE.goal}
           </div>
@@ -504,7 +504,7 @@ function StepChallenge({ prompt, setPrompt, trace, finalAnswer, loading, error, 
               key={i}
               className="btn"
               onClick={() => setPrompt(s.prompt)}
-              style={{ display: 'block', width: '100%', marginTop: 6, padding: '6px 10px', textAlign: 'left', background: 'var(--surface2)', fontSize: '0.85rem' }}
+              style={{ display: 'block', width: '100%', marginTop: 6, padding: '6px 10px', textAlign: 'left', background: 'var(--surface2)', fontSize: '0.95rem' }}
             >
               {s.label}
             </button>
@@ -566,7 +566,7 @@ function StepChallenge({ prompt, setPrompt, trace, finalAnswer, loading, error, 
                     justifyContent: 'flex-start',
                     textAlign: 'left',
                     padding: '8px 10px',
-                    fontSize: '0.85rem',
+                    fontSize: '0.95rem',
                     background: obsChecks[i] ? 'rgba(34,197,94,0.12)' : 'var(--surface2)',
                     borderColor: obsChecks[i] ? 'var(--success)' : 'var(--border)',
                     color: 'var(--text)',
@@ -633,7 +633,7 @@ function StepPlan({ plan, setPlan, toggleTool, onSave, saving, savedAt, error, l
                       key={t.key}
                       className="btn"
                       onClick={() => toggleTool(t.key)}
-                      style={{ padding: '6px 12px', fontSize: '0.85rem', background: on ? 'var(--accent)' : 'var(--surface2)', borderColor: on ? 'var(--accent)' : 'var(--border)', color: on ? 'white' : 'var(--text)' }}
+                      style={{ padding: '6px 12px', fontSize: '0.95rem', background: on ? 'var(--accent)' : 'var(--surface2)', borderColor: on ? 'var(--accent)' : 'var(--border)', color: on ? 'white' : 'var(--text)' }}
                     >
                       {on ? '✓ ' : ''}{t.label}
                     </button>
@@ -679,7 +679,7 @@ function StepPlan({ plan, setPlan, toggleTool, onSave, saving, savedAt, error, l
               key={i}
               className="btn"
               onClick={() => loadExample(ex)}
-              style={{ width: '100%', marginTop: 6, padding: '8px 10px', textAlign: 'left', background: 'var(--surface2)', fontSize: '0.85rem', whiteSpace: 'normal', lineHeight: 1.4 }}
+              style={{ width: '100%', marginTop: 6, padding: '8px 10px', textAlign: 'left', background: 'var(--surface2)', fontSize: '0.95rem', whiteSpace: 'normal', lineHeight: 1.4 }}
             >
               <strong>{ex.agent_name}</strong>
               <div className="muted small" style={{ marginTop: 2 }}>{ex.target_user}</div>
@@ -687,7 +687,7 @@ function StepPlan({ plan, setPlan, toggleTool, onSave, saving, savedAt, error, l
           ))}
         </div>
 
-        <div className="card-sm" style={{ background: 'rgba(99, 102, 241, 0.08)', borderColor: 'var(--accent)', fontSize: '0.82rem' }}>
+        <div className="card-sm" style={{ background: 'rgba(99, 102, 241, 0.08)', borderColor: 'var(--accent)', fontSize: '0.92rem' }}>
           🎯 다음 차시(6차시)에 본인 기획서대로 에이전트를 작동시켜보고 발표하게 됩니다. 교사와 1:1 순회 시간에 현실성을 같이 점검해보세요.
         </div>
       </div>
@@ -705,7 +705,7 @@ function StepWrapup({ challengeDone, planDone, takeaway, setTakeaway, goStep }) 
     >
       <span style={{ fontWeight: 600 }}>{done ? '✅' : '⬜'} {label}</span>
       {!done && (
-        <button className="btn" onClick={() => goStep(gotoIdx)} style={{ padding: '4px 12px', fontSize: '0.82rem' }}>
+        <button className="btn" onClick={() => goStep(gotoIdx)} style={{ padding: '4px 12px', fontSize: '0.92rem' }}>
           바로가기 →
         </button>
       )}
@@ -739,7 +739,7 @@ function StepWrapup({ challengeDone, planDone, takeaway, setTakeaway, goStep }) 
         </label>
       </div>
 
-      <div className="card-sm" style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.85rem' }}>
+      <div className="card-sm" style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.95rem' }}>
         📅 <strong>6차시 예고</strong> — 다음 시간엔 이 기획서대로 내 에이전트를 실제로 작동시켜 발표합니다.
       </div>
     </div>
@@ -769,13 +769,13 @@ function TraceView({ trace }) {
             emoji={label?.emoji || '🛠'}
             label={`도구 — ${label?.label || step.name}`}
           >
-            <div style={{ fontSize: '0.82rem' }}>
+            <div style={{ fontSize: '0.92rem' }}>
               <div className="muted">입력:</div>
-              <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.78rem', overflowX: 'auto' }}>
+              <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.88rem', overflowX: 'auto' }}>
                 {JSON.stringify(step.input, null, 2)}
               </pre>
               <div className="muted" style={{ marginTop: 4 }}>결과:</div>
-              <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.78rem', overflowX: 'auto', color: step.error ? 'var(--danger)' : 'inherit' }}>
+              <pre style={{ background: 'var(--bg)', padding: 6, borderRadius: 4, fontSize: '0.88rem', overflowX: 'auto', color: step.error ? 'var(--danger)' : 'inherit' }}>
                 {JSON.stringify(step.output, null, 2)}
               </pre>
             </div>
@@ -790,7 +790,7 @@ function TraceView({ trace }) {
 function Step({ color, emoji, label, children }) {
   return (
     <div style={{ borderLeft: `3px solid ${color}`, paddingLeft: 12, marginLeft: 4 }}>
-      <div style={{ fontSize: '0.78rem', color, fontWeight: 700, marginBottom: 4 }}>
+      <div style={{ fontSize: '0.88rem', color, fontWeight: 700, marginBottom: 4 }}>
         {emoji} {label}
       </div>
       <div>{children}</div>

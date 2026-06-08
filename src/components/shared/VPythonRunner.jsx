@@ -68,7 +68,7 @@ export default function VPythonRunner({
           {label && (
             <div
               style={{
-                fontSize: '0.75rem',
+                fontSize: '0.86rem',
                 color: 'var(--text-muted)',
                 fontWeight: 600,
                 letterSpacing: '0.05em',
@@ -84,7 +84,7 @@ export default function VPythonRunner({
               title="자동으로 카메라를 돌려서 모든 각도를 보여줘요. 끄면 마우스로 직접 돌릴 수 있어요."
               style={{
                 padding: '3px 10px',
-                fontSize: '0.72rem',
+                fontSize: '0.84rem',
                 background: rotate ? 'var(--accent)' : 'var(--surface2)',
                 color: rotate ? 'white' : 'var(--text-muted)',
                 border: '1px solid ' + (rotate ? 'var(--accent)' : 'var(--border)'),
@@ -155,7 +155,7 @@ export default function VPythonRunner({
       {src && showRotateToggle && (
         <div
           style={{
-            fontSize: '0.72rem',
+            fontSize: '0.84rem',
             color: 'var(--text-muted)',
             marginTop: 4,
             display: 'flex',
