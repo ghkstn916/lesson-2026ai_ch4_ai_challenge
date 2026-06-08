@@ -10,7 +10,7 @@
   --surface2: #334155;
   --border: #475569;
   --text: #f1f5f9;
-  --text-muted: #94a3b8;
+  --text-muted: #b6c2d4;
   --accent: #6366f1;
   --accent-hover: #818cf8;
   --success: #22c55e;
@@ -20,12 +20,21 @@
   --radius-lg: 12px;
 }
 
+html { font-size: 17px; }
+
 body {
   font-family: 'Pretendard', 'Apple SD Gothic Neo', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
-  line-height: 1.6;
+  line-height: 1.65;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+@media (max-width: 640px) {
+  html { font-size: 16px; }
 }
 
 button { cursor: pointer; font-family: inherit; }
@@ -56,7 +65,7 @@ a:hover { text-decoration: underline; }
 }
 
 .muted { color: var(--text-muted); }
-.small { font-size: 0.85rem; }
+.small { font-size: 0.92rem; }
 .error { color: var(--danger); font-size: 0.9rem; }
 
 .row { display: flex; gap: 12px; }
@@ -67,11 +76,11 @@ a:hover { text-decoration: underline; }
 
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field > span {
-  font-size: 0.85rem;
+  font-size: 0.92rem;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--text);
 }
-.field > span em { font-style: normal; color: var(--warning); font-weight: 400; font-size: 0.75rem; }
+.field > span em { font-style: normal; color: var(--warning); font-weight: 400; font-size: 0.82rem; }
 
 .field input,
 .field textarea {
@@ -129,7 +138,7 @@ a:hover { text-decoration: underline; }
   display: flex;
   gap: 8px;
   align-items: center;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
 }
 .keybar .pill {
   display: inline-flex;
@@ -162,18 +171,18 @@ a:hover { text-decoration: underline; }
   transition: border-color 0.15s, transform 0.15s;
 }
 .mode-card:hover { border-color: var(--accent); transform: translateY(-2px); text-decoration: none; }
-.mode-card .session { font-size: 0.75rem; color: var(--text-muted); }
+.mode-card .session { font-size: 0.82rem; color: var(--text-muted); }
 .mode-card .title {
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 700;
   margin: 4px 0 6px;
 }
-.mode-card .summary { font-size: 0.85rem; color: var(--text-muted); }
+.mode-card .summary { font-size: 0.92rem; color: var(--text-muted); }
 .mode-card .badge {
   display: inline-block;
   margin-top: 10px;
-  padding: 2px 8px;
-  font-size: 0.7rem;
+  padding: 3px 9px;
+  font-size: 0.78rem;
   border-radius: 999px;
   border: 1px solid var(--border);
   color: var(--text-muted);
@@ -188,8 +197,8 @@ a:hover { text-decoration: underline; }
   border-radius: var(--radius-lg);
   padding: 18px;
 }
-.challenge h3 { font-size: 1.1rem; margin-bottom: 6px; }
-.challenge .meta { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; }
+.challenge h3 { font-size: 1.2rem; margin-bottom: 6px; }
+.challenge .meta { font-size: 0.86rem; color: var(--text-muted); margin-bottom: 10px; }
 
 .attempt {
   background: var(--bg);
@@ -201,8 +210,8 @@ a:hover { text-decoration: underline; }
 
 .tag {
   display: inline-block;
-  padding: 2px 8px;
-  font-size: 0.7rem;
+  padding: 3px 9px;
+  font-size: 0.78rem;
   border-radius: 999px;
   background: var(--surface2);
   color: var(--text-muted);
