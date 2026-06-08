@@ -3,7 +3,7 @@ import StudentLayout from '../components/StudentLayout.jsx'
 import ModeIntro from '../components/ModeIntro.jsx'
 import useStudentStore from '../store/studentStore.js'
 import { TOOL_CHALLENGES, TOOL_SYSTEM_PROMPT, MAX_TOOL_ROUNDS } from '../data/challenges-tool.js'
-import { TOOLS_SPEC, TOOL_LABELS, executeTool, resetMemo } from '../lib/tools.js'
+import { TOOLS_SPEC, TOOL_LABELS, TOOL_GROUPS, executeTool, resetMemo } from '../lib/tools.js'
 import { callClaude } from '../lib/claude.js'
 import { insertAttempt, fetchMyAttempts } from '../lib/supabase.js'
 
@@ -163,16 +163,24 @@ export default function ToolMode() {
         <p className="muted small" style={{ marginBottom: 8, opacity: 0.9 }}>
           🌍 이건 <strong>맛보기</strong>예요 — 실제 AI 에이전트는 웹 검색·이미지 생성·코드 실행·번역·앱/로봇 제어 등 <strong>수백 가지</strong> 도구를 씁니다. AI의 세계는 훨씬 넓어요.
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
-          {Object.entries(TOOL_LABELS).map(([k, v]) => (
-            <div key={k} className="card-sm" style={{ background: 'var(--surface2)', padding: '8px 10px' }}>
-              <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                {v.emoji} {v.label} <code style={{ opacity: 0.55, fontSize: '0.84rem' }}>{k}</code>
-              </div>
-              <div className="muted" style={{ fontSize: '0.88rem', marginTop: 2, lineHeight: 1.45 }}>{v.desc}</div>
+        {TOOL_GROUPS.map((g) => (
+          <div key={g.title} style={{ marginTop: 10 }}>
+            <p className="muted small" style={{ fontWeight: 700, margin: '0 0 4px' }}>{g.emoji} {g.title}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
+              {g.keys.filter((k) => TOOL_LABELS[k]).map((k) => {
+                const v = TOOL_LABELS[k]
+                return (
+                  <div key={k} className="card-sm" style={{ background: 'var(--surface2)', padding: '8px 10px' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                      {v.emoji} {v.label} <code style={{ opacity: 0.55, fontSize: '0.84rem' }}>{k}</code>
+                    </div>
+                    <div className="muted" style={{ fontSize: '0.88rem', marginTop: 2, lineHeight: 1.45 }}>{v.desc}</div>
+                  </div>
+                )
+              })}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
 
       {/* 단계 진행 바 */}

@@ -371,6 +371,98 @@ function percentTool({ part, whole, percent, of }) {
   throw new Error('part·whole 또는 percent·of 가 필요')
 }
 
+// ── 만 나이 계산 (생활) ───────────────────────────────────────────────────────
+function ageCalc({ birth }) {
+  const m = String(birth).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)
+  if (!m) throw new Error('birth는 YYYY-MM-DD 형식이어야 함')
+  const by = +m[1], bmo = +m[2], bd = +m[3]
+  const t = new Date()
+  let age = t.getFullYear() - by
+  if (t.getMonth() + 1 < bmo || (t.getMonth() + 1 === bmo && t.getDate() < bd)) age -= 1
+  return { birth, koreanAge: age, asOfYear: t.getFullYear() }
+}
+
+// ── 학점(평점) 계산 — 4.5 만점 (대학생) ───────────────────────────────────────
+const GRADE_POINTS = {
+  'A+': 4.5, A0: 4.0, A: 4.0, 'B+': 3.5, B0: 3.0, B: 3.0,
+  'C+': 2.5, C0: 2.0, C: 2.0, 'D+': 1.5, D0: 1.0, D: 1.0, F: 0,
+}
+function gpaCalc({ courses }) {
+  if (!Array.isArray(courses) || courses.length === 0) {
+    throw new Error('courses 배열이 필요 (예: [{grade:"A+", credit:3}])')
+  }
+  let totalCredits = 0, totalPoints = 0
+  for (const c of courses) {
+    const g = String(c.grade).toUpperCase().replace(/\s/g, '')
+    if (!(g in GRADE_POINTS)) throw new Error(`알 수 없는 학점: ${c.grade} (A+,A0,B+,B0,C+,C0,D+,D0,F)`)
+    const cr = Number(c.credit) || 0
+    totalCredits += cr
+    totalPoints += GRADE_POINTS[g] * cr
+  }
+  if (totalCredits === 0) throw new Error('학점(credit) 합이 0')
+  return { gpa: round4(totalPoints / totalCredits), totalCredits, scale: 4.5 }
+}
+
+// ── 더치페이 / N빵 (생활) ─────────────────────────────────────────────────────
+function splitBill({ total, people, tipPercent }) {
+  const t = Number(total)
+  const p = Math.floor(Number(people))
+  if (!(t > 0)) throw new Error('total은 0보다 큰 숫자여야 함')
+  if (!(p > 0)) throw new Error('people은 1 이상이어야 함')
+  const tip = tipPercent ? (t * Number(tipPercent)) / 100 : 0
+  const grand = t + tip
+  return { total: t, tip: round4(tip), grandTotal: round4(grand), people: p, perPerson: Math.ceil(grand / p) }
+}
+
+// ── 할인 계산 (생활) ──────────────────────────────────────────────────────────
+function discount({ price, percent }) {
+  const p = Number(price)
+  const d = Number(percent)
+  if (Number.isNaN(p) || Number.isNaN(d)) throw new Error('price·percent는 숫자여야 함')
+  const saved = (p * d) / 100
+  return { price: p, percent: d, discounted: round4(p - saved), saved: round4(saved) }
+}
+
+// ── 프롬프트 만들기 — 역·맥·요·형 조립 (질문·챗봇) ─────────────────────────────
+function promptBuilder({ role, context, request, format }) {
+  const parts = []
+  if (role) {
+    const last = role.charCodeAt(role.length - 1)
+    const hasBatchim = last >= 0xac00 && last <= 0xd7a3 && (last - 0xac00) % 28 !== 0
+    parts.push(`너는 ${role}${hasBatchim ? '이야' : '야'}.`)
+  }
+  if (context) parts.push(String(context))
+  parts.push(request ? String(request) : '(요청 내용을 적어주세요)')
+  if (format) parts.push(`형식: ${format}`)
+  return {
+    prompt: parts.join(' '),
+    elements: { 역할: role || null, 맥락: context || null, 요청: request || null, 형식: format || null },
+  }
+}
+
+// ── 질문 점검 — 좋은 질문 4요소 체크리스트 (질문·챗봇) ─────────────────────────
+function promptCheck({ text }) {
+  const s = String(text || '')
+  const chars = s.length
+  const hasRole = /(처럼|역할|너는|당신은|선생님|전문가|튜터|면접관|작가|선배|코치|입장에서)/.test(s)
+  const hasContext = /(나는|저는|우리|상황|조건|대상|학생|고3|대학생|초등|중학|위해|때문|준비|중이)/.test(s)
+  const hasFormat = /(표|목록|리스트|단계|줄|글자|개로|형식|예시|순서|마크다운|json|3줄|요약|불릿|항목)/i.test(s)
+  const checklist = { 역할: hasRole, 맥락: hasContext, 요청: chars > 0, 형식: hasFormat }
+  const missing = Object.entries(checklist).filter(([, v]) => !v).map(([k]) => k)
+  const tips = []
+  if (!hasRole) tips.push(`역할 주기: '너는 ○○ 전문가야'처럼 누구로서 답할지 정해보세요.`)
+  if (!hasContext) tips.push(`맥락 주기: '나는 고3이고 ○○ 상황이야'처럼 나의 상황·대상을 알려주세요.`)
+  if (!hasFormat) tips.push(`형식 정하기: '표로', '3줄로', '예시 포함'처럼 원하는 형태를 적어주세요.`)
+  if (chars > 0 && chars < 15) tips.push(`질문이 너무 짧아요. 구체적으로 무엇을 원하는지 한 문장 더 보태면 답이 좋아져요.`)
+  return {
+    chars,
+    checklist,
+    missing,
+    score: `${4 - missing.length}/4`,
+    tips: tips.length ? tips : [`좋은 질문이에요! 역할·맥락·요청·형식이 고루 담겼어요.`],
+  }
+}
+
 // ── 통합 디스패치 ───────────────────────────────────────────────────────────
 export function executeTool(name, input) {
   if (name === 'calc') return { result: evalExpression(input.expression) }
@@ -389,6 +481,12 @@ export function executeTool(name, input) {
   if (name === 'char_code') return charCode(input)
   if (name === 'text_transform') return textTransform(input)
   if (name === 'percent') return percentTool(input)
+  if (name === 'age_calc') return ageCalc(input)
+  if (name === 'gpa_calc') return gpaCalc(input)
+  if (name === 'split_bill') return splitBill(input)
+  if (name === 'discount') return discount(input)
+  if (name === 'prompt_builder') return promptBuilder(input)
+  if (name === 'prompt_check') return promptCheck(input)
   if (name === 'memo') return memoOp(input)
   throw new Error(`알 수 없는 도구: ${name}`)
 }
@@ -589,6 +687,78 @@ export const TOOLS_SPEC = [
     },
   },
   {
+    name: 'age_calc',
+    description: '생년월일로 오늘 기준 만 나이를 계산. 예: 2006-03-12 → 만 나이.',
+    input_schema: {
+      type: 'object',
+      properties: { birth: { type: 'string', description: '생년월일 YYYY-MM-DD' } },
+      required: ['birth'],
+    },
+  },
+  {
+    name: 'gpa_calc',
+    description: '대학 학점(평점)을 4.5 만점으로 계산. courses=[{grade,credit}], grade는 A+/A0/B+/B0/C+/C0/D+/D0/F.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        courses: {
+          type: 'array',
+          items: { type: 'object', properties: { grade: { type: 'string' }, credit: { type: 'number' } } },
+          description: '과목별 학점·학점수',
+        },
+      },
+      required: ['courses'],
+    },
+  },
+  {
+    name: 'split_bill',
+    description: '더치페이(N빵) 계산. 총액을 인원수로 나눠 1인당 금액(올림)을 구한다. 팁(tipPercent) 선택.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        total: { type: 'number', description: '총 금액' },
+        people: { type: 'number', description: '인원수' },
+        tipPercent: { type: 'number', description: '팁 % (선택)' },
+      },
+      required: ['total', 'people'],
+    },
+  },
+  {
+    name: 'discount',
+    description: '할인 계산. 원가와 할인율(%)로 할인된 가격과 절약 금액을 구한다.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        price: { type: 'number', description: '원래 가격' },
+        percent: { type: 'number', description: '할인율 %' },
+      },
+      required: ['price', 'percent'],
+    },
+  },
+  {
+    name: 'prompt_builder',
+    description: "좋은 질문(프롬프트)을 '역할·맥락·요청·형식' 4요소로 조립해준다. 막연한 질문을 또렷한 프롬프트로 다듬을 때.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        role: { type: 'string', description: '역할 (누구처럼 답할지, 선택)' },
+        context: { type: 'string', description: '맥락 (나의 상황·대상·조건, 선택)' },
+        request: { type: 'string', description: '요청 (무엇을 해달라는지)' },
+        format: { type: 'string', description: '형식 (표/3줄/예시 등, 선택)' },
+      },
+      required: ['request'],
+    },
+  },
+  {
+    name: 'prompt_check',
+    description: "사용자가 쓴 질문(프롬프트)을 좋은 질문 4요소(역할·맥락·요청·형식)로 점검해 빠진 것과 개선 팁을 알려준다.",
+    input_schema: {
+      type: 'object',
+      properties: { text: { type: 'string', description: '점검할 질문/프롬프트' } },
+      required: ['text'],
+    },
+  },
+  {
     name: 'memo',
     description:
       '단계 간 정보 보관. action=save|load|list|clear. save/load에는 key가 필요. save에는 value도. 여러 도구를 이어 쓸 때 중간 결과를 저장.',
@@ -685,9 +855,49 @@ export const TOOL_LABELS = {
     label: '비율계산',
     desc: 'part가 whole의 몇 %인지, 또는 어떤 값의 몇 %가 얼마인지 계산.',
   },
+  age_calc: {
+    emoji: '🎂',
+    label: '만나이',
+    desc: '생년월일로 오늘 기준 만 나이를 계산. 만 나이 통일 이후 자주 쓰는 생활 계산.',
+  },
+  gpa_calc: {
+    emoji: '🎓',
+    label: '학점계산',
+    desc: '대학 성적(A+, B0 …)과 학점수로 평점을 4.5 만점으로 계산. 대학생 필수.',
+  },
+  split_bill: {
+    emoji: '🍔',
+    label: '더치페이',
+    desc: '총 금액을 인원수로 나눠 1인당 낼 돈을 계산(올림). 모임·회식 정산에.',
+  },
+  discount: {
+    emoji: '🏷️',
+    label: '할인계산',
+    desc: '원가와 할인율(%)로 할인가와 절약 금액을 계산. 쇼핑할 때 빠르게.',
+  },
+  prompt_builder: {
+    emoji: '💬',
+    label: '프롬프트 만들기',
+    desc: "막연한 질문을 '역할·맥락·요청·형식' 4요소로 또렷한 프롬프트로 조립. 챗봇에 잘 묻는 법.",
+  },
+  prompt_check: {
+    emoji: '🙋',
+    label: '질문 점검',
+    desc: '내가 쓴 질문에 역할·맥락·요청·형식 중 뭐가 빠졌는지 점검하고 개선 팁을 줌.',
+  },
   memo: {
     emoji: '🗒',
     label: '메모',
     desc: '단계 사이에 값을 임시로 저장/불러오기(save·load·list·clear). 여러 도구를 이어 쓸 때 중간 결과 보관.',
   },
 }
+
+// 도구를 카테고리로 묶어 보여주기 — 일상·질문 먼저, 코딩은 '심화'로 뒤에.
+export const TOOL_GROUPS = [
+  { title: '질문·챗봇 잘하기', emoji: '💬', keys: ['prompt_builder', 'prompt_check'] },
+  { title: '계산·생활', emoji: '🧮', keys: ['calc', 'percent', 'discount', 'split_bill', 'gpa_calc', 'age_calc'] },
+  { title: '날짜·시간', emoji: '📅', keys: ['date_diff', 'weekday'] },
+  { title: '글·정리', emoji: '✍️', keys: ['string_count', 'text_transform'] },
+  { title: '정보·데이터', emoji: '🔎', keys: ['search', 'stats', 'random_pick', 'unit_convert', 'memo'] },
+  { title: '코딩 도구 (심화)', emoji: '💻', keys: ['base_convert', 'json_format', 'regex_test', 'color_convert', 'base64', 'char_code'] },
+]
