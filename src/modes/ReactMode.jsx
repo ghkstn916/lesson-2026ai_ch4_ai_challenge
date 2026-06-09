@@ -22,6 +22,7 @@ const MAX_ROUNDS = 10
 const STEP_META = [
   { id: 'concept', emoji: '🧠', title: 'ReAct 이해' },
   { id: 'challenge', emoji: '🎯', title: '에이전트 실습 3종' },
+  { id: 'ideate', emoji: '💡', title: '아이디어 얻기' },
   { id: 'plan', emoji: '📋', title: '내 에이전트 기획서' },
   { id: 'wrapup', emoji: '🏁', title: '마무리 점검' },
 ]
@@ -32,8 +33,9 @@ const OVERVIEW = {
   steps: [
     { label: '❶ ReAct 이해', sub: '생각💭↔도구🛠↔결과📩가 번갈아 도는 원리를 한 장으로' },
     { label: '❷ 에이전트 실습 3종', sub: 'AI가 스스로 단계를 짜고(Lv1) → 루프+메모로 잇고(Lv2) → 메타-지시로 다루기(Lv3)' },
-    { label: '❸ 내 에이전트 기획서', sub: '6차시에 발표할 미니 에이전트를 6필드 한 장으로 설계·저장' },
-    { label: '❹ 마무리 점검', sub: '두 산출물(등록·저장)을 확인하고 6차시로 연결' },
+    { label: '❸ 아이디어 얻기', sub: '내 관심사를 AI에게 주고 나에게 맞는 에이전트 아이디어를 추천받아 고르기' },
+    { label: '❹ 내 에이전트 기획서', sub: '6차시에 발표할 미니 에이전트를 6필드 한 장으로 설계·저장' },
+    { label: '❺ 마무리 점검', sub: '두 산출물(등록·저장)을 확인하고 6차시로 연결' },
   ],
 }
 
@@ -92,6 +94,12 @@ export default function ReactMode() {
   // 마무리
   const [takeaway, setTakeaway] = useState('')
 
+  // 아이디어 얻기 (API 브레인스토밍)
+  const [ideateForm, setIdeateForm] = useState({ interests: '', pain: '', target: '' })
+  const [ideas, setIdeas] = useState([])
+  const [ideasLoading, setIdeasLoading] = useState(false)
+  const [ideasError, setIdeasError] = useState('')
+
   useEffect(() => {
     if (!studentId) return
     fetchMyAttempts({ studentId, mode: 'react' }).then(setHistory).catch(() => {})
@@ -113,7 +121,7 @@ export default function ReactMode() {
   const challengeDone = history.length > 0
   const planDone = !!planSavedAt
   // 챌린지를 이미 한 학생은 개념을 거친 것으로 간주(새로고침·건너뛰기 보정)
-  const doneArr = [conceptRead || challengeDone, challengeDone, planDone, challengeDone && planDone]
+  const doneArr = [conceptRead || challengeDone, challengeDone, ideas.length > 0, planDone, challengeDone && planDone]
 
   const goStep = (i) => {
     if (i < 0 || i > STEP_META.length - 1) return
@@ -278,6 +286,55 @@ export default function ReactMode() {
     })
   }
 
+  // ── 아이디어 얻기: API로 내 관심사에 맞는 에이전트 아이디어 추천 ──────────────
+  const handleSuggestIdeas = async () => {
+    setIdeasError('')
+    setIdeasLoading(true)
+    try {
+      const toolList = Object.entries(TOOL_LABELS).map(([k, v]) => `${k}(${v.label})`).join(', ')
+      const validKeys = Object.keys(TOOL_LABELS)
+      const sys = `너는 한국 고등학생이 'AI 에이전트'를 기획하도록 돕는 아이디어 코치다. 학생의 관심사·상황에 맞춰, 그 학생이 만들고 싶어할 에이전트 아이디어 4개를 제안하라. 각 에이전트는 아래 도구 중 2~4개를 차례로 이어 쓰는 다단계여야 한다.\n사용 가능한 도구(key(이름)): ${toolList}\n규칙: 고등학생이 '오 이거 만들고 싶다' 싶게 구체적·친근하게. 서로 다른 주제로 다양하게 4개. tools_used에는 위 key만 사용. demo_prompt는 그 도구들을 실제로 부를 한국어 한 문장.`
+      const userMsg = `학생 정보\n- 관심사/취미: ${ideateForm.interests || '(딱히 없음)'}\n- 자주 하는 일이나 불편한 점: ${ideateForm.pain || '(딱히 없음)'}\n- 누구를 위해: ${ideateForm.target || '나'}\n\n반드시 아래 JSON만 출력(설명·마크다운 금지):\n{"ideas":[{"agent_name":"","target_user":"","task_one_liner":"","tools_used":["key"],"scenario":"1) ...\\n2) ...","demo_prompt":""}]}`
+      const { text } = await callClaude({
+        model: 'claude-haiku-4-5-20251001',
+        maxTokens: 1600,
+        system: sys,
+        messages: [{ role: 'user', content: userMsg }],
+      })
+      const m = text.match(/\{[\s\S]*\}/)
+      if (!m) throw new Error('아이디어를 받지 못했어요. 다시 한 번 눌러보세요.')
+      const parsed = JSON.parse(m[0])
+      const list = (parsed.ideas || [])
+        .map((it) => ({
+          agent_name: String(it.agent_name || '이름 없는 에이전트'),
+          target_user: String(it.target_user || ideateForm.target || '나'),
+          task_one_liner: String(it.task_one_liner || ''),
+          tools_used: (Array.isArray(it.tools_used) ? it.tools_used : []).filter((t) => validKeys.includes(t)),
+          scenario: String(it.scenario || ''),
+          demo_prompt: String(it.demo_prompt || ''),
+        }))
+        .filter((it) => it.task_one_liner)
+      if (list.length === 0) throw new Error('아이디어 형식이 이상해요. 관심사를 조금 바꿔 다시 시도해보세요.')
+      setIdeas(list)
+    } catch (e) {
+      setIdeasError(e.message || '아이디어 생성에 실패했어요. 잠시 후 다시 시도해보세요.')
+    }
+    setIdeasLoading(false)
+  }
+
+  const useIdea = (idea) => {
+    setPlan({
+      agent_name: idea.agent_name || '',
+      target_user: idea.target_user || '',
+      task_one_liner: idea.task_one_liner || '',
+      tools_used: [...(idea.tools_used || [])],
+      scenario: idea.scenario || '',
+      demo_prompt: idea.demo_prompt || '',
+    })
+    const planIdx = STEP_META.findIndex((s) => s.id === 'plan')
+    goStep(planIdx >= 0 ? planIdx : stepIdx + 1)
+  }
+
   const stepId = STEP_META[stepIdx].id
 
   return (
@@ -311,6 +368,18 @@ export default function ReactMode() {
           reflection={reflection}
           setReflection={setReflection}
           myCount={history.filter((h) => h.challenge_id === challenge.id).length}
+        />
+      )}
+
+      {stepId === 'ideate' && (
+        <StepIdeate
+          form={ideateForm}
+          setForm={setIdeateForm}
+          ideas={ideas}
+          loading={ideasLoading}
+          error={ideasError}
+          onSuggest={handleSuggestIdeas}
+          onUseIdea={useIdea}
         />
       )}
 
@@ -468,7 +537,7 @@ function StepConcept({ onUnderstood }) {
     <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
       <div className="col" style={{ flex: '0 0 380px', gap: 16 }}>
         <div className="challenge">
-          <p className="meta">단계 1 / 4</p>
+          <p className="meta">단계 1 / 5</p>
           <h3>🧠 ReAct 이해</h3>
           <div
             className="card-sm"
@@ -698,7 +767,7 @@ function StepPlan({ plan, setPlan, toggleTool, onSave, saving, savedAt, error, l
     <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
       <div className="col" style={{ flex: 1, gap: 14 }}>
         <div className="card">
-          <p className="meta">단계 3 / 4</p>
+          <p className="meta">단계 4 / 5</p>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 4 }}>📋 내 미니 에이전트 기획서</h2>
           <p className="muted small" style={{ marginBottom: 16 }}>
             6차시에 이 기획서대로 발표할 본인 에이전트를 한 장으로. 마지막 저장본이 최신으로 유지됩니다.
@@ -802,7 +871,90 @@ function StepPlan({ plan, setPlan, toggleTool, onSave, saving, savedAt, error, l
   )
 }
 
-// ── 단계 ❹ 마무리 점검 ───────────────────────────────────────────────────────
+// ── 단계 ❸ 아이디어 얻기 — API로 내게 맞는 에이전트 아이디어 추천 ────────────
+function StepIdeate({ form, setForm, ideas, loading, error, onSuggest, onUseIdea }) {
+  return (
+    <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
+      <div className="col" style={{ flex: '0 0 380px', gap: 16 }}>
+        <div className="challenge">
+          <p className="meta">단계 3 / 5</p>
+          <h3>💡 에이전트 아이디어 얻기</h3>
+          <div
+            className="card-sm"
+            style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'var(--accent)', fontSize: '0.95rem', margin: '8px 0 10px' }}
+          >
+            🎯 <strong>이 단계 목표</strong> — 뭘 만들지 막막할 때, 내 관심사를 AI에게 주고 나에게 맞는 에이전트 아이디어를 추천받아 고른다.
+          </div>
+          <p className="muted small" style={{ lineHeight: 1.7 }}>
+            아래 칸을 채우고 'AI에게 아이디어 받기'를 누르면, AI가 도구를 이어 쓰는 에이전트 아이디어 4개를 제안해줘요. 마음에 드는 걸 고르면 <strong>❹ 기획서</strong>가 자동으로 채워집니다.
+          </p>
+
+          <label className="field" style={{ marginTop: 10 }}>
+            <span>1. 내 관심사·취미 (좋아하는 것)</span>
+            <input type="text" value={form.interests} onChange={(e) => setForm({ ...form, interests: e.target.value })} placeholder="예) 게임, 운동, K-pop, 그림, 주식, 요리" />
+          </label>
+          <label className="field">
+            <span>2. 자주 하는 일이나 불편한 점</span>
+            <input type="text" value={form.pain} onChange={(e) => setForm({ ...form, pain: e.target.value })} placeholder="예) 용돈 관리가 안 돼, 공부 계획 짜기 귀찮아, 일정이 헷갈려" />
+          </label>
+          <label className="field">
+            <span>3. 누구를 위한 에이전트? (선택)</span>
+            <input type="text" value={form.target} onChange={(e) => setForm({ ...form, target: e.target.value })} placeholder="예) 나 / 우리 반 / 동생 / 동아리 친구들" />
+          </label>
+          <button
+            className="btn btn-primary"
+            onClick={onSuggest}
+            disabled={loading || (!form.interests.trim() && !form.pain.trim())}
+            style={{ width: '100%', marginTop: 10 }}
+          >
+            {loading ? 'AI가 아이디어 짜는 중...' : '💡 AI에게 아이디어 받기'}
+          </button>
+          {error && <p className="error" style={{ marginTop: 10 }}>{error}</p>}
+        </div>
+      </div>
+
+      <div className="col" style={{ flex: 1, gap: 12 }}>
+        {ideas.length === 0 && !loading ? (
+          <div className="card-sm muted small" style={{ textAlign: 'center', padding: 30, lineHeight: 1.7 }}>
+            왼쪽에 내 관심사를 적고 'AI에게 아이디어 받기'를 누르면, 나에게 맞는 에이전트 아이디어가 여기에 나와요.<br />(막막하면 ❶ 개념 단계의 예시 쇼케이스나 ❹ 기획서의 예시 13개도 참고하세요.)
+          </div>
+        ) : (
+          <>
+            {loading && <div className="card-sm muted small" style={{ textAlign: 'center', padding: 20 }}>🤖 AI가 나에게 맞는 에이전트 아이디어를 짜고 있어요...</div>}
+            {ideas.map((idea, i) => (
+              <div key={i} className="card">
+                <div style={{ fontWeight: 700, fontSize: '1rem' }}>🤖 {idea.agent_name}</div>
+                <div className="muted small" style={{ marginTop: 2 }}>👤 {idea.target_user}</div>
+                <div style={{ fontSize: '0.95rem', marginTop: 4, lineHeight: 1.5 }}>{idea.task_one_liner}</div>
+                {idea.scenario && (
+                  <div className="muted small" style={{ whiteSpace: 'pre-wrap', marginTop: 6, lineHeight: 1.6 }}>{idea.scenario}</div>
+                )}
+                <div className="row" style={{ flexWrap: 'wrap', gap: 4, marginTop: 8, alignItems: 'center' }}>
+                  {(idea.tools_used || []).map((t, j) => (
+                    <span key={j} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {j > 0 && <span className="muted" style={{ fontSize: '0.82rem' }}>→</span>}
+                      <span className="tag" style={{ background: 'var(--surface2)', color: 'var(--text)', fontSize: '0.78rem' }}>
+                        {TOOL_LABELS[t]?.emoji || '🛠'} {TOOL_LABELS[t]?.label || t}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+                <button className="btn btn-primary" onClick={() => onUseIdea(idea)} style={{ marginTop: 10 }}>
+                  ✏️ 이 아이디어로 기획서 쓰기 →
+                </button>
+              </div>
+            ))}
+            {ideas.length > 0 && !loading && (
+              <p className="muted small">마음에 드는 게 없으면 관심사를 바꿔 다시 받아보세요. (또는 ❹ 기획서에서 미리 만든 예시 13개도 고를 수 있어요)</p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── 단계 ❺ 마무리 점검 ───────────────────────────────────────────────────────
 function StepWrapup({ challengeDone, planDone, takeaway, setTakeaway, goStep }) {
   const allDone = challengeDone && planDone
   const Row = ({ done, label, gotoIdx }) => (
@@ -825,7 +977,7 @@ function StepWrapup({ challengeDone, planDone, takeaway, setTakeaway, goStep }) 
         <p className="muted small" style={{ marginBottom: 12 }}>오늘 만든 두 산출물이 모두 저장됐는지 확인하고 5차시를 닫습니다. (자동 연동 — 등록·저장하면 ✓)</p>
         <div className="col" style={{ gap: 8 }}>
           <Row done={challengeDone} label="❷ 에이전트 실습 1건 이상 등록" gotoIdx={1} />
-          <Row done={planDone} label="❸ 미니 에이전트 기획서 6필드 저장" gotoIdx={2} />
+          <Row done={planDone} label="❹ 미니 에이전트 기획서 6필드 저장" gotoIdx={3} />
         </div>
         {allDone && (
           <div className="card-sm" style={{ marginTop: 12, background: 'rgba(34,197,94,0.12)', borderColor: 'var(--success)', fontWeight: 600 }}>
