@@ -74,6 +74,7 @@ export default function ReactMode() {
   const [obsChecks, setObsChecks] = useState({})
   const [reflection, setReflection] = useState('')
   const [challengeIdx, setChallengeIdx] = useState(0)
+  const [savedRuns, setSavedRuns] = useState({}) // 실습(탭)별로 한 작업 보관 — 탭 전환해도 안 지워지게
 
   // 기획서 상태
   const [plan, setPlan] = useState({
@@ -125,14 +126,17 @@ export default function ReactMode() {
 
   // 학습 챌린지(서브스테퍼) 이동 — prompt/trace/관찰은 비우되 memo는 유지(Lv2가 앞 단계 메모를 load)
   const goChallenge = (i) => {
-    if (i < 0 || i > REACT_CHALLENGES.length - 1) return
-    setChallengeIdx(i)
-    setPrompt('')
-    setTrace([])
-    setFinalAnswer('')
-    setObsChecks({})
-    setReflection('')
+    if (i < 0 || i > REACT_CHALLENGES.length - 1 || i === challengeIdx) return
+    // 지금 실습에서 한 작업을 보관하고, 이동할 실습의 작업을 되살린다 (memo는 세션 내 항상 유지)
+    setSavedRuns((prev) => ({ ...prev, [challengeIdx]: { prompt, trace, finalAnswer, obsChecks, reflection } }))
+    const saved = savedRuns[i] || {}
+    setPrompt(saved.prompt || '')
+    setTrace(saved.trace || [])
+    setFinalAnswer(saved.finalAnswer || '')
+    setObsChecks(saved.obsChecks || {})
+    setReflection(saved.reflection || '')
     setError('')
+    setChallengeIdx(i)
   }
 
   // ── 챌린지 실행 ───────────────────────────────────────────────────────────

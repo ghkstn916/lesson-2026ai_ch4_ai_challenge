@@ -23,6 +23,7 @@ export default function ToolMode() {
   const [history, setHistory] = useState([])
   const [reflection, setReflection] = useState('')
   const [obsChecks, setObsChecks] = useState({})
+  const [savedRuns, setSavedRuns] = useState({}) // 미션(탭)별로 한 작업 보관 — 탭 전환해도 안 지워지게
 
   const challenge = TOOL_CHALLENGES[stepIdx]
   const lastStep = TOOL_CHALLENGES.length - 1
@@ -37,19 +38,19 @@ export default function ToolMode() {
   const myForChallenge = history.filter((h) => h.challenge_id === challenge.id)
   const doneIds = new Set(history.map((h) => h.challenge_id))
 
-  const resetStepState = () => {
-    setPrompt('')
-    setTrace([])
-    setFinalAnswer('')
-    setReflection('')
-    setError('')
-    setObsChecks({})
-  }
-
   const goStep = (i) => {
-    if (i < 0 || i > lastStep) return
+    if (i < 0 || i > lastStep || i === stepIdx) return
+    // 지금 미션에서 한 작업(프롬프트·시퀀스·관찰·메모)을 보관해 두고
+    setSavedRuns((prev) => ({ ...prev, [stepIdx]: { prompt, trace, finalAnswer, obsChecks, reflection } }))
+    // 이동할 미션에 저장돼 있던 작업을 되살린다 (없으면 빈 화면)
+    const saved = savedRuns[i] || {}
+    setPrompt(saved.prompt || '')
+    setTrace(saved.trace || [])
+    setFinalAnswer(saved.finalAnswer || '')
+    setObsChecks(saved.obsChecks || {})
+    setReflection(saved.reflection || '')
+    setError('')
     setStepIdx(i)
-    resetStepState()
   }
 
   const handleRun = async () => {
