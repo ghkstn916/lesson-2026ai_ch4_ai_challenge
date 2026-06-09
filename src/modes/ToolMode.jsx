@@ -276,9 +276,11 @@ export default function ToolMode() {
             </div>
           )}
 
+          {trace.length > 0 && <TraceSummary trace={trace} />}
+
           {trace.length > 0 && (
             <div className="card">
-              <p className="muted small" style={{ fontWeight: 600, marginBottom: 8 }}>✅ 결과에서 확인 — 체크하며 관찰</p>
+              <p className="muted small" style={{ fontWeight: 600, marginBottom: 8 }}>✅ 결과에서 확인 — 위 📊 자동 확인과 내 예측을 비교하며 체크</p>
               <div className="col" style={{ gap: 6 }}>
                 {challenge.observe.map((o, i) => (
                   <button
@@ -385,6 +387,70 @@ function Stepper({ challenges, current, doneIds, onPick }) {
           </button>
         )
       })}
+    </div>
+  )
+}
+
+// ── 실행 시퀀스 자동 분석 — 학생이 예측과 비교·확인할 수 있게 ────────────────
+function analyzeTrace(trace) {
+  const toolSteps = trace.filter((s) => s.kind === 'tool')
+  const counts = {}
+  for (const s of toolSteps) counts[s.name] = (counts[s.name] || 0) + 1
+  return {
+    total: toolSteps.length,
+    distinct: Object.keys(counts).length,
+    counts,
+    sequence: toolSteps.map((s) => s.name),
+    thoughts: trace.filter((s) => s.kind === 'thought').length,
+    emptySearch: toolSteps.filter((s) => s.name === 'search' && Array.isArray(s.output?.results) && s.output.results.length === 0).length,
+    memoSave: toolSteps.filter((s) => s.name === 'memo' && s.input?.action === 'save').length,
+    memoLoad: toolSteps.filter((s) => s.name === 'memo' && s.input?.action === 'load').length,
+    errors: toolSteps.filter((s) => s.error).length,
+  }
+}
+
+function TraceSummary({ trace }) {
+  const a = analyzeTrace(trace)
+  return (
+    <div className="card" style={{ borderColor: 'var(--accent)' }}>
+      <p className="muted small" style={{ fontWeight: 700, marginBottom: 8 }}>
+        📊 이번 실행 자동 확인 — <span style={{ color: 'var(--accent-hover)' }}>내 예측과 맞춰보세요</span>
+      </p>
+      <div className="col" style={{ gap: 6, fontSize: '0.95rem' }}>
+        <div>🛠 도구 호출: <strong>총 {a.total}번</strong> · 서로 다른 도구 <strong>{a.distinct}종</strong></div>
+        {a.total > 0 && (
+          <div className="row" style={{ flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+            <span className="muted small">쓴 도구:</span>
+            {Object.entries(a.counts).map(([k, c]) => (
+              <span key={k} className="tag" style={{ background: 'var(--surface2)', color: 'var(--text)' }}>
+                {TOOL_LABELS[k]?.emoji || '🛠'} {TOOL_LABELS[k]?.label || k} ×{c}
+              </span>
+            ))}
+          </div>
+        )}
+        {a.total > 0 && (
+          <div style={{ fontSize: '0.92rem' }}>
+            <span className="muted small">호출 순서: </span>
+            {a.sequence.map((n, i) => (
+              <span key={i}>
+                {i > 0 && <span className="muted"> → </span>}
+                {TOOL_LABELS[n]?.emoji || ''}{TOOL_LABELS[n]?.label || n}
+              </span>
+            ))}
+          </div>
+        )}
+        <div>💭 AI 생각(Reasoning) 단계: <strong>{a.thoughts}번</strong>{a.thoughts > 0 && a.total > 0 ? ' — 생각↔도구가 번갈아 돌았어요' : ''}</div>
+        {a.emptySearch > 0 && (
+          <div style={{ color: 'var(--warning)' }}>🔎 검색이 <strong>빈 결과인 건 {a.emptySearch}건</strong> — AI가 지어냈는지(환각) 최종 답을 꼭 확인하세요.</div>
+        )}
+        {(a.memoSave > 0 || a.memoLoad > 0) && (
+          <div>🗒 메모: 저장(save) <strong>{a.memoSave}번</strong> · 불러오기(load) <strong>{a.memoLoad}번</strong>{a.memoLoad > 0 ? ' — 메모가 단계를 이어줬어요' : ''}</div>
+        )}
+        {a.errors > 0 && <div style={{ color: 'var(--danger)' }}>⚠ 도구 오류 {a.errors}건 — 입력값을 확인해 보세요.</div>}
+        {a.total === 0 && (
+          <div className="muted small">이번엔 AI가 도구를 <strong>한 번도 안 썼어요</strong>. (도구가 필요 없는 질문이거나, "도구로 확인해줘"를 덧붙이면 달라져요)</div>
+        )}
+      </div>
     </div>
   )
 }
