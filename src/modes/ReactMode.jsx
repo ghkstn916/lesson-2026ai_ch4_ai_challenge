@@ -417,9 +417,54 @@ function Stepper({ current, doneArr, onPick }) {
   )
 }
 
+// ── 에이전트 예시 쇼케이스 — '뭘 만들 수 있는지' 감 잡기 ──────────────────────
+function AgentShowcase() {
+  // 도메인별 대표 1개씩 골라 다양하게 6개
+  const picks = []
+  const seen = new Set()
+  for (const ex of EXAMPLE_PLANS) {
+    if (!seen.has(ex.domain)) {
+      seen.add(ex.domain)
+      picks.push(ex)
+    }
+    if (picks.length >= 6) break
+  }
+  return (
+    <div className="card" style={{ marginTop: 16, borderColor: 'var(--accent)' }}>
+      <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>🤖 에이전트로 이런 걸 만들 수 있어요</h3>
+      <p className="muted small" style={{ marginTop: 4, marginBottom: 10, lineHeight: 1.7 }}>
+        도구를 <strong>여러 개 이어 쓰면</strong> AI가 '작은 비서'가 됩니다. 아래는 맛보기예요 — 마음에 드는 게 있으면 <strong>❸ 기획서</strong> 단계에서 클릭해 그대로 가져다 내 에이전트로 발전시킬 수 있어요.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 8 }}>
+        {picks.map((ex, i) => (
+          <div key={i} className="card-sm" style={{ background: 'var(--surface2)' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>🤖 {ex.agent_name}</div>
+            <div className="muted small" style={{ marginTop: 2 }}>👤 {ex.target_user}</div>
+            <div style={{ fontSize: '0.92rem', marginTop: 4, lineHeight: 1.5 }}>{ex.task_one_liner}</div>
+            <div className="row" style={{ flexWrap: 'wrap', gap: 4, marginTop: 8, alignItems: 'center' }}>
+              {ex.tools_used.map((t, j) => (
+                <span key={j} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  {j > 0 && <span className="muted" style={{ fontSize: '0.82rem' }}>→</span>}
+                  <span className="tag" style={{ background: 'var(--surface)', color: 'var(--text)', fontSize: '0.78rem' }}>
+                    {TOOL_LABELS[t]?.emoji || '🛠'} {TOOL_LABELS[t]?.label || t}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="muted small" style={{ marginTop: 10 }}>
+        💡 공통점이 보이나요? 전부 <strong>한 줄 목표 → 도구를 차례로 이어 부르기</strong> 예요. 이게 에이전트예요.
+      </p>
+    </div>
+  )
+}
+
 // ── 단계 ❶ 개념 ──────────────────────────────────────────────────────────────
 function StepConcept({ onUnderstood }) {
   return (
+    <>
     <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
       <div className="col" style={{ flex: '0 0 380px', gap: 16 }}>
         <div className="challenge">
@@ -474,6 +519,9 @@ function StepConcept({ onUnderstood }) {
         </div>
       </div>
     </div>
+
+      <AgentShowcase />
+    </>
   )
 }
 
